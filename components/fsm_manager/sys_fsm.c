@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "pins.h"
+#include "sys_fsm.h"
 
 // Defines the stack buffer for fsm task
 #define V_FSM_STACK_BUFFER 2048
