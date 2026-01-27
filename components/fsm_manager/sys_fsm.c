@@ -6,7 +6,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "pins.h"
+#include "nv_params.h"
 #include "sys_fsm.h"
+#include "conn_mgr.h"
 
 // Defines the stack buffer for fsm task
 #define V_FSM_STACK_BUFFER 2048
@@ -46,8 +48,11 @@ static void vTaskFSM( void * pvParameters )
             */
             case STATE_INIT:
             {
-                // init GPIO pins configuration;
+                // Initializes GPIO configurations for the application.
                 sys_conf_gpio();
+                
+                // Initializes NVS to store Wi-Fi credentials (SSID and password).
+                set_wf_params_nv_storage();
                 
                 // Try to set the state to 
                 if( fsm_set_state( STATE_WIFI_CONNECTING ) )
@@ -62,7 +67,17 @@ static void vTaskFSM( void * pvParameters )
             }
             case STATE_WIFI_CONNECTING:
             {
-
+                init_network_abstraction_layer();
+                esp_err_t wifi_ret = init_wifi_connection();
+                if (wifi_ret == ESP_OK)
+                {
+                    ESP_LOGI( fsm_tag, "Sucessfully connected to the network!");
+                }
+                else
+                {
+                    // Set state to handle not connection
+                }
+                break;
             }
             case STATE_PROVISIONING:
             {
@@ -95,7 +110,7 @@ static void vTaskFSM( void * pvParameters )
 // Responsible to create the task
 void fsm_init( void )
 {   
-    xTaskCreate(vTaskFSM, "FSM", V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate( vTaskFSM, "FSM", V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL );
 }
 
 // Sets the state of the FSM

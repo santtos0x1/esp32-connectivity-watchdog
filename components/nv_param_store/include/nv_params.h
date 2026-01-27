@@ -13,6 +13,6 @@ typedef struct {
 
 esp_err_t get_wf_params_nv_storage( wifi_config_data_t * config );
 void set_wf_params_nv_storage( void );
-static esp_err_t init_nvs_storage( void );
+esp_err_t init_nvs_storage( void );
 
 #endif // !NV_PARAMS_H

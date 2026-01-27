@@ -1,3 +1,0 @@
-ICMP Echo
-ESP-LOG
-ESP-MQTT
