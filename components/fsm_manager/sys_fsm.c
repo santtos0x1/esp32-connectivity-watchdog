@@ -9,14 +9,17 @@
 #include "nv_params.h"
 #include "sys_fsm.h"
 #include "conn_mgr.h"
+#include "esp_wifi.h"
 
 // Defines the stack buffer for fsm task
-#define V_FSM_STACK_BUFFER 2048
+#define V_FSM_STACK_BUFFER 4096
 
 // Tag for debugging 
-static const char* fsm_tag = "FSM"; 
+static const char*    fsm_tag = "FSM"; 
 
 static system_state_t current_state;
+static esp_err_t      err;
+static esp_err_t      wifi_ret;
 
 /* 
     Implements a state transition table using an 8-byte bitmask for a minimal memory footprint.
@@ -53,31 +56,43 @@ static void vTaskFSM( void * pvParameters )
                 
                 // Initializes NVS to store Wi-Fi credentials (SSID and password).
                 set_wf_params_nv_storage();
-                
-                // Try to set the state to 
-                if( fsm_set_state( STATE_WIFI_CONNECTING ) )
+                err |= fsm_set_state( STATE_WIFI_CONNECTING );
+                if( err != ESP_OK )
                 {
-                    ESP_LOGI( fsm_tag, "Setting state to: STATE_WIFI_CONNECTING" );
+                    ESP_LOGE( fsm_tag, "Error to set state" );
+                    fsm_set_state(STATE_ERROR);
+                    break;
                 }
-                else 
-                {
-                    ESP_LOGE( fsm_tag, "Error to set state to: STATE_WIFI_CONNECTING" );
-                }
+
+                ESP_LOGI( fsm_tag, "Setting state to: STATE_WIFI_CONNECTING" );
                 break;
             }
             case STATE_WIFI_CONNECTING:
             {
                 init_network_abstraction_layer();
-                esp_err_t wifi_ret = init_wifi_connection();
-                if (wifi_ret == ESP_OK)
+                wifi_ret = init_wifi_connection();
+
+                if( wifi_ret == ESP_OK )
                 {
-                    ESP_LOGI( fsm_tag, "Sucessfully connected to the network!");
+                    ESP_LOGI( fsm_tag, "Sucessfully connected to the network!" );
+                    err |= fsm_set_state( STATE_PROVISIONING );
+
+                    if( err != ESP_OK )
+                    {
+                        ESP_LOGE( fsm_tag, "Error to set state" );
+                        fsm_set_state(STATE_ERROR);
+                        break;
+                    }
+
+                    ESP_LOGI( fsm_tag, "Setting state to: STATE_PROVISIONING" );
+                    break;
                 }
                 else
                 {
-                    // Set state to handle not connection
+                    ESP_LOGE( fsm_tag, "Error to start connection!" );
+                    fsm_set_state(STATE_ERROR);
+                    break;
                 }
-                break;
             }
             case STATE_PROVISIONING:
             {
@@ -101,13 +116,44 @@ static void vTaskFSM( void * pvParameters )
             }
             case STATE_ERROR:
             {
+                switch( err )
+                {
+                    case ESP_ERR_NO_MEM:
+                    {
+                        ESP_LOGE( fsm_tag, "Out of Heap memory! Trying to reset device..." );
+                        vTaskDelay( pdMS_TO_TICKS( 100 ) );
+                        esp_restart();
+                    }
+                    case ESP_ERR_NOT_SUPPORTED:
+                    {
+                        ESP_LOGE( fsm_tag, "Not supported operation or configuration!" );
+                        fsm_set_state( STATE_INIT );
+                        break;
+                    }
+                    case ESP_ERR_NOT_FOUND:
+                    {
+                        ESP_LOGE( fsm_tag, "Not found operation!" );
+                        fsm_set_state( STATE_INIT );
+                        break;
+                    }
+                }
 
+                if( wifi_ret ==  ESP_ERR_TIMEOUT || wifi_ret == ESP_ERR_NOT_FOUND )
+                {
+                    ESP_LOGE( fsm_tag, "Timout error or not found! Trying to reset device..." );
+                    
+                    esp_wifi_stop();
+                    nvs_flash_deinit();
+
+                    vTaskDelay( pdMS_TO_TICKS( 100 ) );
+                    esp_restart();
+                }
             }
         }
     }
 }
 
-// Responsible to create the task
+// Responsible for the task creation
 void fsm_init( void )
 {   
     xTaskCreate( vTaskFSM, "FSM", V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL );
