@@ -10,35 +10,18 @@
 #include "sys_fsm.h"
 #include "conn_mgr.h"
 #include "esp_wifi.h"
-
-// Defines the stack buffer for fsm task
-#define V_FSM_STACK_BUFFER 4096
+#include "sys_conf.h"
 
 // Tag for debugging 
 static const char*    fsm_tag = "FSM"; 
 
 static system_state_t current_state;
+
 static esp_err_t      err;
 static esp_err_t      wifi_ret;
 
-/* 
-    Implements a state transition table using an 8-byte bitmask for a minimal memory footprint.
-    This enforces strict transition rules within the set_state function,
-    ensuring system security and predictable behavior.
-*/
-static const uint8_t state_bitmask[ 8 ] = {
-    0b10000110, // STATE_INIT
-    0b10001101, // STATE_WIFI_CONNECTING
-    0b10000001, // STATE_PROVISIONING
-    0b10110011, // STATE_MQTT_CONNECTING
-    0b11100011, // STATE_OPERATIONAL_ONLINE
-    0b11000111, // STATE_OPERATIONAL_OFFLINE
-    0b10110011, // STATE_SYNCING
-    0b00000001  // STATE_ERROR
-};
-
 // FSM task to run
-static void vTaskFSM( void * pvParameters )
+void vTaskFSM( void * pvParameters )
 {
     for( ;; )
     {
