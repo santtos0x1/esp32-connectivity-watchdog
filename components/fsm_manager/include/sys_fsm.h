@@ -2,6 +2,7 @@
 #define SYS_FSM_H
 
 #include <stdbool.h>
+#include "freertos/FreeRTOS.h"
 
 typedef enum {
     STATE_INIT,    
@@ -34,5 +35,6 @@ bool fsm_set_state( system_state_t new_state );
 system_state_t fsm_get_state( void );
 void vTaskFSM( void * pvParameters );
 void fsm_init( void );
+void panic_dev_restart( TickType_t ms);
 
 #endif // !SYS_FSM_H

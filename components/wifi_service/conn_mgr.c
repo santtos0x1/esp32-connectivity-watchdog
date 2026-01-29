@@ -7,14 +7,14 @@
 
 // Debug tags
 static const char* wifi_tag = "WIFI";
-static const char* nal_tag = "NAL";
+static const char* nal_tag  = "NAL";
 
 // Initializes the ESP-NETIF config (TCP/IP stack abstraction layer)
 static wifi_config_t wifi_config = {
     .sta = {
-        .bssid_set = 1,
+        .bssid_set          = 1,
         .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        .scan_method = WIFI_FAST_SCAN
+        .scan_method        = WIFI_FAST_SCAN
     }
 };
 
@@ -24,7 +24,7 @@ static wifi_config_t wifi_config = {
 void init_network_abstraction_layer( void )
 {
     esp_err_t ret = esp_netif_init();
-    if( ret == ESP_FAIL ) ESP_LOGE( nal_tag, "Netif init failed: %s", ret );
+    if( ret == ESP_FAIL ) ESP_LOGE( nal_tag, "Netif init failed: %s", esp_err_to_name( ret ) );
 
     esp_netif_create_default_wifi_sta();
 }
@@ -39,8 +39,8 @@ esp_err_t init_wifi_connection( void )
 
     // Creates error handlers 
     esp_err_t config_error_handler, connect_error_handler, get_params_error_handler;
-    config_error_handler = ESP_OK;
-    connect_error_handler = ESP_OK;
+    config_error_handler     = ESP_OK;
+    connect_error_handler    = ESP_OK;
     get_params_error_handler = ESP_OK;
 
     // Gets the data from caller-allocated struct
@@ -66,14 +66,14 @@ esp_err_t init_wifi_connection( void )
 
     if( config_error_handler != ESP_OK )
     {
-        ESP_LOGE( wifi_tag, "Fail on WiFi radio configuration: %s", config_error_handler );
+        ESP_LOGE( wifi_tag, "Fail on WiFi radio configuration: %s", esp_err_to_name( config_error_handler ) );
         return config_error_handler;
     }
 
     connect_error_handler |= esp_wifi_connect();
     if( connect_error_handler != ESP_OK )
     {
-        ESP_LOGE( wifi_tag, "WiFi Connection failed: %s", connect_error_handler );
+        ESP_LOGE( wifi_tag, "WiFi Connection failed: %s", esp_err_to_name( connect_error_handler ) );
         return connect_error_handler;
     }
 

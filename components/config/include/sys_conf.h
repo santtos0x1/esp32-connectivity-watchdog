@@ -11,4 +11,6 @@
 // Defines the stack buffer for fsm task
 #define V_FSM_STACK_BUFFER 4096
 
+// Delays
+#define LOW_DELAY_TICK_100 100
 #endif // !SYS_CONF_H

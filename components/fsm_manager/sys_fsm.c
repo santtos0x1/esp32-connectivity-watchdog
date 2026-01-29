@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+
 #include "include/sys_fsm.h"
+
 #include "esp_log.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
 #include "pins.h"
 #include "nv_params.h"
 #include "sys_fsm.h"
@@ -13,9 +17,9 @@
 #include "sys_conf.h"
 
 // Tag for debugging 
-static const char*    fsm_tag = "FSM"; 
+static const char*    fsm_tag = "fsm";
 
-static system_state_t current_state;
+static system_state_t current_state = STATE_INIT;
 
 static esp_err_t      err;
 static esp_err_t      wifi_ret;
@@ -42,38 +46,39 @@ void vTaskFSM( void * pvParameters )
                 err |= fsm_set_state( STATE_WIFI_CONNECTING );
                 if( err != ESP_OK )
                 {
-                    ESP_LOGE( fsm_tag, "Error to set state" );
-                    fsm_set_state(STATE_ERROR);
+                    ESP_LOGE( fsm_tag, "Failed to set state" );
+                    fsm_set_state( STATE_ERROR );
                     break;
                 }
 
-                ESP_LOGI( fsm_tag, "Setting state to: STATE_WIFI_CONNECTING" );
+                ESP_LOGI( fsm_tag, "Transitioning to state: STATE_WIFI_CONNECTING" );
                 break;
             }
             case STATE_WIFI_CONNECTING:
             {
+                // Sets up network layer and wifi configuration 
                 init_network_abstraction_layer();
                 wifi_ret = init_wifi_connection();
 
                 if( wifi_ret == ESP_OK )
                 {
-                    ESP_LOGI( fsm_tag, "Sucessfully connected to the network!" );
+                    ESP_LOGI( fsm_tag, "Successfully connected to the network!" );
                     err |= fsm_set_state( STATE_PROVISIONING );
 
                     if( err != ESP_OK )
                     {
-                        ESP_LOGE( fsm_tag, "Error to set state" );
-                        fsm_set_state(STATE_ERROR);
+                        ESP_LOGE( fsm_tag, "State transition failed" );
+                        fsm_set_state( STATE_ERROR );
                         break;
                     }
 
-                    ESP_LOGI( fsm_tag, "Setting state to: STATE_PROVISIONING" );
+                    ESP_LOGI( fsm_tag, "Transitioning to state: STATE_PROVISIONING" );
                     break;
                 }
                 else
                 {
-                    ESP_LOGE( fsm_tag, "Error to start connection!" );
-                    fsm_set_state(STATE_ERROR);
+                    ESP_LOGE( fsm_tag, "Failed to start connection!" );
+                    fsm_set_state( STATE_ERROR );
                     break;
                 }
             }
@@ -97,25 +102,26 @@ void vTaskFSM( void * pvParameters )
             {
 
             }
+            // Used for treat all the erros in FSM
             case STATE_ERROR:
             {
                 switch( err )
                 {
                     case ESP_ERR_NO_MEM:
                     {
-                        ESP_LOGE( fsm_tag, "Out of Heap memory! Trying to reset device..." );
-                        vTaskDelay( pdMS_TO_TICKS( 100 ) );
-                        esp_restart();
+                        ESP_LOGE( fsm_tag, "Heap memory exhausted. Initiating system reset..." );
+
+                        panic_dev_restart( LOW_DELAY_TICK_100 );
                     }
                     case ESP_ERR_NOT_SUPPORTED:
                     {
-                        ESP_LOGE( fsm_tag, "Not supported operation or configuration!" );
+                        ESP_LOGE( fsm_tag, "Unsupported operation or configuration." );
                         fsm_set_state( STATE_INIT );
                         break;
                     }
                     case ESP_ERR_NOT_FOUND:
                     {
-                        ESP_LOGE( fsm_tag, "Not found operation!" );
+                        ESP_LOGE( fsm_tag, "Unknown operation." );
                         fsm_set_state( STATE_INIT );
                         break;
                     }
@@ -123,17 +129,25 @@ void vTaskFSM( void * pvParameters )
 
                 if( wifi_ret ==  ESP_ERR_TIMEOUT || wifi_ret == ESP_ERR_NOT_FOUND )
                 {
-                    ESP_LOGE( fsm_tag, "Timout error or not found! Trying to reset device..." );
+                    ESP_LOGE( fsm_tag, "Timeout error or resource not found. Resetting device...");
                     
-                    esp_wifi_stop();
-                    nvs_flash_deinit();
-
-                    vTaskDelay( pdMS_TO_TICKS( 100 ) );
-                    esp_restart();
+                    panic_dev_restart( LOW_DELAY_TICK_100 );
                 }
             }
         }
     }
+}
+
+/*
+    * Used for restart ESP32 completly 
+*/
+void panic_dev_restart( TickType_t ms )
+{
+    esp_wifi_stop();
+    nvs_flash_deinit();
+    
+    vTaskDelay( pdMS_TO_TICKS( ms ) );
+    esp_restart();
 }
 
 // Responsible for the task creation

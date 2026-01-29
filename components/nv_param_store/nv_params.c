@@ -7,7 +7,7 @@
 
 // Sets information for set_wf function and debugging
 static nvs_handle_t nvHandle;
-static const char* nvs_tag = "NVS"; 
+static const char* nvs_tag = "nvs"; 
 
 esp_err_t init_nvs_storage( void )
 {
@@ -17,10 +17,10 @@ esp_err_t init_nvs_storage( void )
     if( ret == ESP_ERR_NO_MEM || ret == ESP_ERR_INVALID_VERSION )
     {
         // If memory is full or the version is invalid, the NVS partition will be erased.
-        ESP_LOGE( nvs_tag, "Cannot init NVS, no memory or invalid version." );
+        ESP_LOGE( nvs_tag, "NVS initialization failed: Insufficient memory or partition version mismatch." );
         ESP_ERROR_CHECK( ret );
 
-        ESP_LOGI( nvs_tag, "Erasing flash memory..." );
+        ESP_LOGI( nvs_tag, "Wiping flash memory..." );
         ret = nvs_flash_erase();
     }
 
@@ -39,7 +39,7 @@ void set_wf_params_nv_storage( void )
     
     if( init == ESP_OK && get_params == ESP_OK )
     {
-        ESP_LOGI( nvs_tag, "NVS Storage started sucessfully, setting WiFi params" );
+        ESP_LOGI( nvs_tag, "NVS storage initialized successfully; setting WiFi parameters." );
         nvs_open( NVS_PARTITION_NAME, NVS_READWRITE, &nvHandle );
 
         nvs_set_str( nvHandle, NVS_PARAM_SSID, wifi_data.ssid );
