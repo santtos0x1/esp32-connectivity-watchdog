@@ -9,7 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "pins.h"
+#include "hal_pins.h"
 #include "nv_params.h"
 #include "sys_fsm.h"
 #include "conn_mgr.h"
@@ -23,7 +23,7 @@ static system_state_t current_state = STATE_INIT;
 
 static esp_err_t      err;
 static esp_err_t      wifi_ret;
-
+static bool           init_nal;
 // FSM task to run
 void vTaskFSM( void * pvParameters )
 {
@@ -57,7 +57,13 @@ void vTaskFSM( void * pvParameters )
             case STATE_WIFI_CONNECTING:
             {
                 // Sets up network layer and wifi configuration 
-                init_network_abstraction_layer();
+                init_nal = init_network_abstraction_layer();
+                if( init_nal != true )
+                {
+                    ESP_LOGE( fsm_tag, "Network Abstraction Layer failed to init." );
+                    fsm_set_state( STATE_ERROR );
+                    break;
+                }
                 wifi_ret = init_wifi_connection();
 
                 if( wifi_ret == ESP_OK )
@@ -67,7 +73,7 @@ void vTaskFSM( void * pvParameters )
 
                     if( err != ESP_OK )
                     {
-                        ESP_LOGE( fsm_tag, "State transition failed" );
+                        ESP_LOGE( fsm_tag, "State transition failed." );
                         fsm_set_state( STATE_ERROR );
                         break;
                     }
@@ -105,6 +111,10 @@ void vTaskFSM( void * pvParameters )
             // Used for treat all the erros in FSM
             case STATE_ERROR:
             {
+                if( init_nal != true)
+                {
+                    // Working...
+                }
                 switch( err )
                 {
                     case ESP_ERR_NO_MEM:

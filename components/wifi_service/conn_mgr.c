@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -21,12 +23,17 @@ static wifi_config_t wifi_config = {
 /*
     * Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 */
-void init_network_abstraction_layer( void )
+bool init_network_abstraction_layer( void )
 {
     esp_err_t ret = esp_netif_init();
-    if( ret == ESP_FAIL ) ESP_LOGE( nal_tag, "Netif init failed: %s", esp_err_to_name( ret ) );
-
+    if( ret != ESP_OK ) 
+    {
+        ESP_LOGE( nal_tag, "Netif init failed: %s", esp_err_to_name( ret ) );
+        return false;
+    }
+    
     esp_netif_create_default_wifi_sta();
+    return true;
 }
 
 /*
