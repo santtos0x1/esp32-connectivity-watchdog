@@ -1,4 +1,5 @@
 #include <stdio.h>
+
 #include "nv_params.h"
 #include "sys_fsm.h"
 #include "esp_event.h"

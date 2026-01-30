@@ -1,5 +1,7 @@
 #include <stdlib.h>
+
 #include "driver/gpio.h"
+
 #include "hal_map.h"
 
 // Configuration set

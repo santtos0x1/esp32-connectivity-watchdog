@@ -2,18 +2,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "include/sys_fsm.h"
-
+#include "esp_wifi.h"
 #include "esp_log.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "sys_fsm.h"
 #include "hal_pins.h"
 #include "nv_params.h"
-#include "sys_fsm.h"
 #include "conn_mgr.h"
-#include "esp_wifi.h"
 #include "sys_conf.h"
 
 // Tag for debugging 

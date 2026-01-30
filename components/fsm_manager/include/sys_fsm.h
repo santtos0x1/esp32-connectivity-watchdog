@@ -2,6 +2,7 @@
 #define SYS_FSM_H
 
 #include <stdbool.h>
+
 #include "freertos/FreeRTOS.h"
 
 typedef enum {
