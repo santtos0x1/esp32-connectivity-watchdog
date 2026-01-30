@@ -8,8 +8,8 @@
 static uint32_t free_heap_size;
 static uint32_t free_internal_heap_size;
 
-static uint16_t MINOR_VERSION;
 static uint16_t MAJOR_VERSION;
+static uint16_t MINOR_VERSION;
 
 static char * boot_tag = "boot";
 static char * features_tag = "boot-features";
@@ -61,70 +61,18 @@ void esp_chip_info_internal( void )
     
     static const unsigned long features_map_size = sizeof( features_map ) / sizeof( features_map[ 0 ] );
 
-    esp_chip_model_t chip_model = chip_info.model;
-    const uint32_t features           = chip_info.features;
-    const uint16_t revision           = chip_info.revision;
-    const uint8_t cores               = chip_info.cores;
+    const esp_chip_model_t chip_model = chip_info.model;
+    const uint32_t features = chip_info.features;
+    const uint16_t revision = chip_info.revision;
+    const uint8_t cores = chip_info.cores;
 
     // Silicon revision
     MINOR_VERSION = revision / 100;
     MAJOR_VERSION = revision % 100;
-    
-    GET_MCU_CHIP_NAME(chip_model, boot_tag);
 
-    /*
-    switch(chip_model)
-    {
-        case CHIP_ESP32:
-            ESP_LOGI( boot_tag, "Chip model: ESP32" );
-            break;
-        case CHIP_ESP32S2:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-S2" );
-            break;
-        case CHIP_ESP32S3:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-S3" );
-            break;
-        case CHIP_ESP32C3:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-C3" );
-            break;
-        case CHIP_ESP32C2:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-C2" );
-            break;
-        case CHIP_ESP32C6:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-C6" );
-            break;
-        case CHIP_ESP32H2:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-H2" );
-            break;
-        case CHIP_ESP32P4:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-P4" );
-            break;
-        case CHIP_ESP32C61:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-C61" );
-            break;  
-        case CHIP_ESP32C5:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-C5" );
-            break;  
-        case CHIP_ESP32H21:
-            ESP_LOGI( boot_tag, "Chip model: ESP32-H21" );
-            break;
-        case CHIP_ESP32H4:
-        {
-            ESP_LOGI( boot_tag, "Chip model: ESP32-H4" );
-            break;
-        }
-        case CHIP_POSIX_LINUX:
-        {
-            ESP_LOGI( boot_tag, "Chip model: ESP32-POSIX/Linux" );
-            break;
-        }
-        default:
-        {
-            ESP_LOGE( boot_tag, "Chip model: Undefined" );
-            break;
-        }
-    }
-    */
+    static const char * c_model = GET_MCU_CHIP_NAME( chip_model );
+
+    ESP_LOGI( boot_tag, "%s", c_model );
     
     ESP_LOGI( "", "Features: " );
     for( uint8_t i = 0; i < features_map_size; i++ )

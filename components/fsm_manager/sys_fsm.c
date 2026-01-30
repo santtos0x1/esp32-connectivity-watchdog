@@ -15,13 +15,14 @@
 #include "sys_conf.h"
 
 // Tag for debugging 
-static const char*    fsm_tag = "fsm";
+static const char* fsm_tag = "fsm";
 
 static system_state_t current_state = STATE_INIT;
 
-static esp_err_t      err;
-static esp_err_t      wifi_ret;
-static bool           init_nal;
+static esp_err_t err;
+static esp_err_t wifi_ret;
+static bool init_nal;
+
 // FSM task to run
 void vTaskFSM( void * pvParameters )
 {
@@ -106,7 +107,7 @@ void vTaskFSM( void * pvParameters )
             {
 
             }
-            // Used for treat all the erros in FSM
+            // Used for treat all the errors in FSM
             case STATE_ERROR:
             {
                 if( init_nal != true)
@@ -147,7 +148,7 @@ void vTaskFSM( void * pvParameters )
 }
 
 /*
-    * Used for restart ESP32 completly 
+    * Used for restart ESP32 completely 
 */
 void panic_dev_restart( TickType_t ms )
 {

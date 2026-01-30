@@ -9,15 +9,15 @@
 #include "conn_mgr.h"
 
 // Debug tags
-static const char* wifi_tag = "WIFI";
-static const char* nal_tag  = "NAL";
+static const char* wifi_tag = "wifi";
+static const char* nal_tag  = "nal";
 
 // Initializes the ESP-NETIF config (TCP/IP stack abstraction layer)
 static wifi_config_t wifi_config = {
     .sta = {
-        .bssid_set          = 1,
+        .bssid_set = 1,
         .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        .scan_method        = WIFI_FAST_SCAN
+        .scan_method = WIFI_FAST_SCAN
     }
 };
 
@@ -47,8 +47,8 @@ esp_err_t init_wifi_connection( void )
 
     // Creates error handlers 
     esp_err_t config_error_handler, connect_error_handler, get_params_error_handler;
-    config_error_handler     = ESP_OK;
-    connect_error_handler    = ESP_OK;
+    config_error_handler = ESP_OK;
+    connect_error_handler = ESP_OK;
     get_params_error_handler = ESP_OK;
 
     // Gets the data from caller-allocated struct
