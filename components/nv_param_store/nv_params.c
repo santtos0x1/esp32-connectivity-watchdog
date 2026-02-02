@@ -9,51 +9,26 @@
 static nvs_handle_t nvHandle;
 static const char* nvs_tag = "nvs"; 
 
-esp_err_t init_nvs_storage( void )
+esp_err_t init_nvs( void )
 {
-    // Starts the NVS storage in flash memory 
-    esp_err_t ret = nvs_flash_init();
-    
-    if( ret == ESP_ERR_NO_MEM || ret == ESP_ERR_INVALID_VERSION )
-    {
-        // If memory is full or the version is invalid, the NVS partition will be erased.
-        ESP_LOGE( nvs_tag, "NVS initialization failed: Insufficient memory or partition version mismatch." );
-        ESP_ERROR_CHECK( ret );
+    esp_err_t err = ESP_OK;
 
-        ESP_LOGI( nvs_tag, "Wiping flash memory..." );
-        ret = nvs_flash_erase();
+    // Starts the NVS storage in flash memory 
+    err |= nvs_flash_init();
+    if( err != ESP_OK )
+    {
+        ESP_ERROR_CHECK( err );
+        err = nvs_flash_erase();
     }
 
     // Return the init status
-    return ret;
+    return err;
 }
-/*
-    * Stores WiFi configuration in the NVS partition for future boots.
-*/
-void set_wf_params_nv_storage( void )
-{
-    wifi_config_data_t wifi_data;
 
-    esp_err_t init = init_nvs_storage();
-    esp_err_t get_params = get_wf_params_nv_storage( &wifi_data );
-    
-    if( init == ESP_OK && get_params == ESP_OK )
-    {
-        ESP_LOGI( nvs_tag, "NVS storage initialized successfully; setting WiFi parameters." );
-        nvs_open( NVS_PARTITION_NAME, NVS_READWRITE, &nvHandle );
-
-        nvs_set_str( nvHandle, NVS_PARAM_SSID, wifi_data.ssid );
-        nvs_set_str( nvHandle, NVS_PARAM_PASSWORD, wifi_data.pass );
-        nvs_set_str( nvHandle, NVS_PARAM_BSSID, wifi_data.bssid );
-
-        // Commits the information on NVS
-        nvs_commit( nvHandle );
-    }
-}
 /*
     * Fetches persisted WiFi configuration from non-volatile storage.
 */
- esp_err_t get_wf_params_nv_storage( wifi_config_data_t * config )
+ esp_err_t get_wf_params_nvs( wifi_config_data_t * config )
 {
     esp_err_t err;
 
@@ -82,4 +57,32 @@ void set_wf_params_nv_storage( void )
     // Closes the NVS
     nvs_close( nvHandle );
     return ESP_OK;
+}
+
+/*
+    * Stores WiFi configuration in the NVS partition for future boots.
+*/
+esp_err_t set_wf_params_nvs( void )
+{
+    wifi_config_data_t wifi_data;
+    esp_err_t err = ESP_OK;
+
+    err |= init_nvs();
+    err |= get_wf_params_nvs( &wifi_data );
+        
+    if( err != ESP_OK )
+    {
+        ESP_LOGI( nvs_tag, "Failed to initialize NVS or failed to get params!" );
+        return err;
+    }
+
+    ESP_LOGI( nvs_tag, "NVS initialized successfully; setting WiFi parameters." );
+    nvs_open( NVS_PARTITION_NAME, NVS_READWRITE, &nvHandle );
+    
+    nvs_set_str( nvHandle, NVS_PARAM_SSID, wifi_data.ssid );
+    nvs_set_str( nvHandle, NVS_PARAM_PASSWORD, wifi_data.pass );
+    nvs_set_str( nvHandle, NVS_PARAM_BSSID, wifi_data.bssid );
+    
+    // Commits the information on NVS
+    nvs_commit( nvHandle );
 }

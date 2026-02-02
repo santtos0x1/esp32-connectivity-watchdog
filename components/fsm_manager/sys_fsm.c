@@ -14,39 +14,54 @@
 #include "conn_mgr.h"
 #include "sys_conf.h"
 
-// Tag for debugging 
-static const char* fsm_tag = "fsm";
-
 static system_state_t current_state = STATE_INIT;
 
-static esp_err_t err;
-static esp_err_t wifi_ret;
+static const char* fsm_tag = "fsm";
+
+static esp_err_t err = ESP_OK;
+static esp_err_t wifi_ret = ESP_OK;
+static esp_err_t nvs_ret = ESP_OK;
 static bool init_nal;
 
 // FSM task to run
 void vTaskFSM( void * pvParameters )
 {
+    /*
+        * @brief Responsible for system-wide hardware and software initialization,
+        * including GPIO mapping, NVS, and wifi stack configuration.
+    */
+    
+    // Initializes GPIO configurations for the application.
+    err = sys_conf_gpio();
+    if( err == ESP_OK )
+    {
+        // Initializes NVS to store Wi-Fi credentials (SSID and password). 
+        err = set_wf_params_nvs();
+    }
+    // Sets up network layer and wifi configuration 
+    if( err == ESP_OK && !init_network_abstraction_layer())
+    {
+
+        
+    }
+    else if( err != ESP_OK )
+    {
+        current_state = STATE_ERROR;
+        ESP_LOGE(fsm_tag, "Critical failure during setup: %s", esp_err_to_name( err ) );
+    }
+
     for( ;; )
     {
         // FSM logic
         switch( current_state )
         {
-            /*
-                Responsible for system-wide hardware and software initialization,
-                including GPIO mapping, NVS flash, and Wi-Fi stack configuration. 
-            */
             case STATE_INIT:
             {
-                // Initializes GPIO configurations for the application.
-                sys_conf_gpio();
-                
-                // Initializes NVS to store Wi-Fi credentials (SSID and password).
-                set_wf_params_nv_storage();
                 err |= fsm_set_state( STATE_WIFI_CONNECTING );
                 if( err != ESP_OK )
                 {
                     ESP_LOGE( fsm_tag, "Failed to set state" );
-                    fsm_set_state( STATE_ERROR );
+                    current_state = STATE_ERROR;
                     break;
                 }
 
@@ -54,39 +69,28 @@ void vTaskFSM( void * pvParameters )
                 break;
             }
             case STATE_WIFI_CONNECTING:
-            {
-                // Sets up network layer and wifi configuration 
-                init_nal = init_network_abstraction_layer();
-                if( init_nal != true )
-                {
-                    ESP_LOGE( fsm_tag, "Network Abstraction Layer failed to init." );
-                    fsm_set_state( STATE_ERROR );
-                    break;
-                }
+            {                
                 wifi_ret = init_wifi_connection();
-
-                if( wifi_ret == ESP_OK )
-                {
-                    ESP_LOGI( fsm_tag, "Successfully connected to the network!" );
-                    err |= fsm_set_state( STATE_PROVISIONING );
-
-                    if( err != ESP_OK )
-                    {
-                        ESP_LOGE( fsm_tag, "State transition failed." );
-                        fsm_set_state( STATE_ERROR );
-                        break;
-                    }
-
-                    ESP_LOGI( fsm_tag, "Transitioning to state: STATE_PROVISIONING" );
-                    break;
-                }
-                else
+                if( wifi_ret != ESP_OK )
                 {
                     ESP_LOGE( fsm_tag, "Failed to start connection!" );
-                    fsm_set_state( STATE_ERROR );
+                    current_state = STATE_ERROR;
                     break;
                 }
+
+                ESP_LOGI( fsm_tag, "Successfully connected to the network!" );
+                
+                err |= fsm_set_state( STATE_PROVISIONING );
+                if( err != ESP_OK )
+                {
+                    ESP_LOGE( fsm_tag, "State transition failed." );
+                    current_state = STATE_ERROR;
+                    break;
+                }
+
+                break;
             }
+
             case STATE_PROVISIONING:
             {
 
@@ -107,40 +111,39 @@ void vTaskFSM( void * pvParameters )
             {
 
             }
+
             // Used for treat all the errors in FSM
             case STATE_ERROR:
             {
+                if( nvs_ret != ESP_OK)
+                {
+                    panic_dev_restart( LOW_DELAY_TICK_100, nvs_ret);
+                }
+
                 if( init_nal != true)
                 {
-                    // Working...
-                }
-                switch( err )
-                {
-                    case ESP_ERR_NO_MEM:
-                    {
-                        ESP_LOGE( fsm_tag, "Heap memory exhausted. Initiating system reset..." );
-
-                        panic_dev_restart( LOW_DELAY_TICK_100 );
-                    }
-                    case ESP_ERR_NOT_SUPPORTED:
-                    {
-                        ESP_LOGE( fsm_tag, "Unsupported operation or configuration." );
-                        fsm_set_state( STATE_INIT );
-                        break;
-                    }
-                    case ESP_ERR_NOT_FOUND:
-                    {
-                        ESP_LOGE( fsm_tag, "Unknown operation." );
-                        fsm_set_state( STATE_INIT );
-                        break;
-                    }
+                    panic_dev_restart( LOW_DELAY_TICK_100, init_nal);
                 }
 
                 if( wifi_ret ==  ESP_ERR_TIMEOUT || wifi_ret == ESP_ERR_NOT_FOUND )
                 {
-                    ESP_LOGE( fsm_tag, "Timeout error or resource not found. Resetting device...");
-                    
-                    panic_dev_restart( LOW_DELAY_TICK_100 );
+                    ESP_LOGE( fsm_tag, "Timeout error or resource not found: %s", esp_err_to_name( wifi_ret ) );
+                    current_state = STATE_WIFI_CONNECTING;
+                    break;
+                }
+
+                switch( err )
+                {
+                    case ESP_ERR_NO_MEM:
+                    {
+                        panic_dev_restart( LOW_DELAY_TICK_100, err);
+                    }
+                    default:
+                    {
+                        ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+                        current_state = STATE_INIT;
+                        break;
+                    }
                 }
             }
         }
@@ -148,15 +151,15 @@ void vTaskFSM( void * pvParameters )
 }
 
 /*
-    * Used for restart ESP32 completely 
+    * Used for restart ESP32 completely and log error
 */
-void panic_dev_restart( TickType_t ms )
+void panic_dev_restart( TickType_t ms, esp_err_t error_ret )
 {
     esp_wifi_stop();
     nvs_flash_deinit();
     
     vTaskDelay( pdMS_TO_TICKS( ms ) );
-    esp_restart();
+    ESP_ERROR_CHECK( error_ret );
 }
 
 // Responsible for the task creation

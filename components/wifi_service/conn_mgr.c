@@ -54,7 +54,7 @@ esp_err_t init_wifi_connection( void )
     // Gets the data from caller-allocated struct
     static wifi_config_data_t wifi_data;
     
-    get_params_error_handler = get_wf_params_nv_storage( &wifi_data );
+    get_params_error_handler = get_wf_params_nvs( &wifi_data );
     if( get_params_error_handler != ESP_OK )
     { 
         ESP_LOGE( wifi_tag, "Cannot get WiFi data from NVS" );

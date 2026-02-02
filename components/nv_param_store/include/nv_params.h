@@ -13,8 +13,8 @@ typedef struct {
     char bssid[ MAX_BSSID_LEN ];
 } wifi_config_data_t;
 
-esp_err_t get_wf_params_nv_storage( wifi_config_data_t * config );
-esp_err_t init_nvs_storage( void );
-void set_wf_params_nv_storage( void );
+esp_err_t get_wf_params_nvs( wifi_config_data_t * config );
+esp_err_t init_nvs( void );
+esp_err_t set_wf_params_nvs( void );
 
 #endif // !NV_PARAMS_H

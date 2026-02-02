@@ -16,8 +16,15 @@ gpio_config_t io_conf_led = {
 /*
     * Initializes and configures the GPIO pins used by the application.
 */
-void sys_conf_gpio( void )
+esp_err_t sys_conf_gpio( void )
 {
+    esp_err_t err = ESP_OK;
+    
     // Configs the pin with the configuration set
-    gpio_config( &io_conf_led );
+    err |= gpio_config( &io_conf_led );
+
+    if( err != ESP_OK )
+    {
+        return err;
+    }
 }

@@ -36,6 +36,6 @@ bool fsm_set_state( system_state_t new_state );
 system_state_t fsm_get_state( void );
 void vTaskFSM( void * pvParameters );
 void fsm_init( void );
-void panic_dev_restart( TickType_t ms);
+void panic_dev_restart( TickType_t ms, esp_err_t error_ret );
 
 #endif // !SYS_FSM_H

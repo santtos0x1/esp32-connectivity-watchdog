@@ -8,7 +8,7 @@
 void app_main(void)
 {
     // Starts the NVS
-    init_nvs_storage();
+    init_nvs();
     
     // Creates the event loop for notifications and wifi initialization
     esp_event_loop_create_default();
