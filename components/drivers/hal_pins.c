@@ -27,4 +27,6 @@ esp_err_t sys_conf_gpio( void )
     {
         return err;
     }
+    
+    return ESP_OK;
 }

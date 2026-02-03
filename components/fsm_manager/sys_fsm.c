@@ -38,13 +38,14 @@ void vTaskFSM( void * pvParameters )
         // Initializes NVS to store Wi-Fi credentials (SSID and password). 
         err = set_wf_params_nvs();
     }
+    
     // Sets up network layer and wifi configuration 
     if( err == ESP_OK && !init_network_abstraction_layer())
     {
-
-        
+        err = ESP_FAIL;        
     }
-    else if( err != ESP_OK )
+
+    if( err != ESP_OK )
     {
         current_state = STATE_ERROR;
         ESP_LOGE(fsm_tag, "Critical failure during setup: %s", esp_err_to_name( err ) );
@@ -136,7 +137,8 @@ void vTaskFSM( void * pvParameters )
                 {
                     case ESP_ERR_NO_MEM:
                     {
-                        panic_dev_restart( LOW_DELAY_TICK_100, err);
+                        panic_dev_restart( LOW_DELAY_TICK_100, err );
+                        break;
                     }
                     default:
                     {

@@ -15,6 +15,7 @@ esp_err_t init_nvs( void )
 
     // Starts the NVS storage in flash memory 
     err |= nvs_flash_init();
+    
     if( err != ESP_OK )
     {
         ESP_ERROR_CHECK( err );
@@ -38,24 +39,28 @@ esp_err_t init_nvs( void )
     
     // Gets the SSID in NVS or get default value
     err = nvs_get_str( nvHandle, NVS_PARAM_SSID, config->ssid, &ssid_size );
-    if ( err == ESP_ERR_NVS_NOT_FOUND ) {
+    if ( err == ESP_ERR_NVS_NOT_FOUND )
+    {
         strncpy( config->ssid, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 
     // Gets the pass in NVS or get default value
-    err = nvs_get_str( nvHandle, NVS_PARAM_PASSWORD, config->ssid, &pass_size );
-    if ( err == ESP_ERR_NVS_NOT_FOUND ) {
+    err = nvs_get_str( nvHandle, NVS_PARAM_PASSWORD, config->pass, &pass_size );
+    if ( err == ESP_ERR_NVS_NOT_FOUND )
+    {
         strncpy( config->pass, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 
     // Gets the bssid in NVS or get default value
     err = nvs_get_str( nvHandle, NVS_PARAM_BSSID, config->bssid, &bssid_size );
-    if ( err == ESP_ERR_NVS_NOT_FOUND ) {
+    if ( err == ESP_ERR_NVS_NOT_FOUND )
+    {
         strncpy( config->bssid, CONFIG_WIFI_BSSID, MAX_BSSID_LEN );
     }
 
     // Closes the NVS
     nvs_close( nvHandle );
+    
     return ESP_OK;
 }
 
@@ -67,9 +72,8 @@ esp_err_t set_wf_params_nvs( void )
     wifi_config_data_t wifi_data;
     esp_err_t err = ESP_OK;
 
-    err |= init_nvs();
     err |= get_wf_params_nvs( &wifi_data );
-        
+    nvs_open( NVS_PARTITION_NAMESPACE, NVS_READWRITE, &nvHandle );    
     if( err != ESP_OK )
     {
         ESP_LOGI( nvs_tag, "Failed to initialize NVS or failed to get params!" );
@@ -77,7 +81,6 @@ esp_err_t set_wf_params_nvs( void )
     }
 
     ESP_LOGI( nvs_tag, "NVS initialized successfully; setting WiFi parameters." );
-    nvs_open( NVS_PARTITION_NAME, NVS_READWRITE, &nvHandle );
     
     nvs_set_str( nvHandle, NVS_PARAM_SSID, wifi_data.ssid );
     nvs_set_str( nvHandle, NVS_PARAM_PASSWORD, wifi_data.pass );
@@ -85,4 +88,9 @@ esp_err_t set_wf_params_nvs( void )
     
     // Commits the information on NVS
     nvs_commit( nvHandle );
+    
+    // Closes the NVS
+    nvs_close( nvHandle );
+
+    return ESP_OK;
 }
