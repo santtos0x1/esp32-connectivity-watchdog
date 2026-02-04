@@ -9,7 +9,6 @@
 #include "nv_params.h"
 #include "param_validation.h"
 
-
 static nvs_handle_t nvHandle;
 
 const static size_t nvs_data_size[] = { MAX_SSID_LEN, MAX_PASS_LEN, MAX_BSSID_LEN };
@@ -19,13 +18,17 @@ const uint8_t arr_size = sizeof( nvs_data_size ) / sizeof( nvs_data_size[ 0 ] );
 
 static const char * integrity_tag = "integrity";
 
+// Initialize the result value
 static uint8_t op_result = 0x00;
 nvs_stats_t nvs_stats;
 
 esp_err_t err = ESP_OK;
 
+/*
+    * Validate NVS parameters to ensure all required configuration fields are populated
+*/
 esp_err_t nvs_check_params( wifi_config_data_t * config )
-{   
+{
     char * nvs_data[ arr_size ] = {};
     char * nvs_config_data[] = { config->ssid, config->pass, config->bssid };
 
@@ -33,6 +36,7 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
 
     for( uint8_t i = 0 ; i < arr_size ; i++ )
     {
+        // Retrieves stored values from NVS and validates them against expected value.
         err = nvs_get_str( nvHandle, nvs_params[ i ], nvs_data[ i ], &nvs_data_size[ i ] );
         if( err != ESP_OK )
         {

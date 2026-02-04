@@ -1,5 +1,4 @@
 #include "sdkconfig.h"
-
 #include "softap_provisioning.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
@@ -10,6 +9,7 @@
 
 static const char * prov_tag = "prov";
 
+// Handles background events triggered by the provisioning process
 void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_t event_id, void * event_data )
 {
     if( event_base == WIFI_PROV_EVENT )
@@ -23,6 +23,7 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
             }
             case WIFI_PROV_CRED_RECV:
             {
+                // Extracts SSID from the received configuration data
                 wifi_sta_config_t * wifi_sta_cfg = ( wifi_sta_config_t * ) event_data;
                 ESP_LOGI( prov_tag, "Credential received successfully. SSID: %s", ( char * )wifi_sta_cfg->ssid );
                 break;
@@ -34,6 +35,7 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
             }
             case WIFI_PROV_END:
             {
+                // Cleanup resources once provisioning is finished
                 wifi_prov_mgr_deinit();
                 mdns_free();
                 break;
@@ -46,6 +48,7 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
     }
 }
 
+// Configures mDNS to allow the mobile app to find the device by name
 void init_mdns( void )
 {
     esp_err_t err = mdns_init();
@@ -56,12 +59,13 @@ void init_mdns( void )
     }
 
     mdns_hostname_set("ns-monitor-devconf");
-
     mdns_instance_name_set("NS Monitor config");
 }
 
+// Sets up and starts the SoftAP provisioning service
 void init_provisioning( void )
 {
+    // Use SoftAP scheme (ESP32 acts as an Access Point)
     wifi_prov_mgr_config_t mgr_conf = {
         .scheme = wifi_prov_scheme_softap,
         .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE
@@ -69,6 +73,7 @@ void init_provisioning( void )
 
     ESP_ERROR_CHECK( wifi_prov_mgr_init( mgr_conf ) );
 
+    // Start provisioning with Security 1 (requires Proof of Possession)
     ESP_ERROR_CHECK( wifi_prov_mgr_start_provisioning(
         WIFI_PROV_SECURITY_1, 
         CONFIG_WIFI_AP_PROV_POP, 
