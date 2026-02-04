@@ -19,7 +19,7 @@ const uint8_t arr_size = sizeof( nvs_data_size ) / sizeof( nvs_data_size[ 0 ] );
 static const char * integrity_tag = "integrity";
 
 // Initialize the result value
-static uint8_t op_result = 0x00;
+static uint8_t op_result = 0b00000000;
 nvs_stats_t nvs_stats;
 
 esp_err_t err = ESP_OK;
@@ -49,7 +49,7 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
         }
     }
 
-    if( op_result != 0x07 ) 
+    if( op_result != 0b00000111 ) 
     {
         return ESP_FAIL;
     }
