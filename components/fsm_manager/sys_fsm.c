@@ -4,6 +4,9 @@
 
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "esp_event.h"
+#include "wifi_provisioning/manager.h"
+#include "wifi_provisioning/wifi_config.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -13,6 +16,7 @@
 #include "nv_params.h"
 #include "conn_mgr.h"
 #include "sys_conf.h"
+#include "softap_provisioning.h"
 
 static system_state_t current_state = STATE_INIT;
 
@@ -26,38 +30,47 @@ static bool init_nal;
 // FSM task to run
 void vTaskFSM( void * pvParameters )
 {
-    /*
-        * @brief Responsible for system-wide hardware and software initialization,
-        * including GPIO mapping, NVS, and wifi stack configuration.
-    */
-    
-    // Initializes GPIO configurations for the application.
-    err = sys_conf_gpio();
-    if( err == ESP_OK )
-    {
-        // Initializes NVS to store Wi-Fi credentials (SSID and password). 
-        err = set_wf_params_nvs();
-    }
-    
-    // Sets up network layer and wifi configuration 
-    if( err == ESP_OK && !init_network_abstraction_layer())
-    {
-        err = ESP_FAIL;        
-    }
-
-    if( err != ESP_OK )
-    {
-        current_state = STATE_ERROR;
-        ESP_LOGE(fsm_tag, "Critical failure during setup: %s", esp_err_to_name( err ) );
-    }
-
     for( ;; )
     {
+        vTaskDelay(pdMS_TO_TICKS(10));
         // FSM logic
         switch( current_state )
         {
             case STATE_INIT:
             {
+                /*
+                    * @brief Responsible for system-wide hardware and software initialization,
+                    * including GPIO mapping, NVS, and wifi stack configuration.
+                */
+
+                err = sys_conf_gpio();
+                if (err != ESP_OK) {
+                    ESP_LOGE(fsm_tag, "GPIO Configuration failed: %s", esp_err_to_name(err));
+                    current_state = STATE_ERROR;
+                    break; 
+                }
+                 // Initializes NVS to store Wi-Fi credentials (SSID and password). 
+                err = set_wf_params_nvs();
+                if (err != ESP_OK) {
+                    ESP_LOGE(fsm_tag, "NVS Initialization failed: %s", esp_err_to_name(err));
+                    current_state = STATE_ERROR;
+                    break;
+                }
+
+                 // Sets up network layer and wifi configuration 
+                if (!init_network_abstraction_layer()) {
+                    ESP_LOGE(fsm_tag, "Network Abstraction Layer failed to start!");
+                    err = ESP_FAIL; 
+                    current_state = STATE_ERROR;
+                    break;
+                }
+                    
+                init_mdns();
+                init_provisioning();
+
+                // Register an event from event handler
+                ESP_ERROR_CHECK( esp_event_handler_register( WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, provisioning_event_handler, NULL ));
+
                 err |= fsm_set_state( STATE_WIFI_CONNECTING );
                 if( err != ESP_OK )
                 {
@@ -94,7 +107,7 @@ void vTaskFSM( void * pvParameters )
 
             case STATE_PROVISIONING:
             {
-
+            
             }
             case STATE_MQTT_CONNECTING:
             {
@@ -129,7 +142,7 @@ void vTaskFSM( void * pvParameters )
                 if( wifi_ret ==  ESP_ERR_TIMEOUT || wifi_ret == ESP_ERR_NOT_FOUND )
                 {
                     ESP_LOGE( fsm_tag, "Timeout error or resource not found: %s", esp_err_to_name( wifi_ret ) );
-                    current_state = STATE_WIFI_CONNECTING;
+                    current_state = STATE_PROVISIONING;
                     break;
                 }
 
@@ -149,6 +162,7 @@ void vTaskFSM( void * pvParameters )
                 }
             }
         }
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

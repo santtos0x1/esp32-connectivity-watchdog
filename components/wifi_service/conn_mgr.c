@@ -32,8 +32,11 @@ bool init_network_abstraction_layer( void )
         ESP_LOGE( nal_tag, "Netif init failed: %s", esp_err_to_name( ret ) );
         return false;
     }
-    
+
+    esp_netif_create_default_wifi_ap();
+
     esp_netif_create_default_wifi_sta();
+
     return true;
 }
 
