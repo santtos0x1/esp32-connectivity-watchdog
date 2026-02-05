@@ -1,8 +1,6 @@
 #ifndef SYS_FSM_H
 #define SYS_FSM_H
 
-#include <stdbool.h>
-
 #include "freertos/FreeRTOS.h"
 
 typedef enum {
@@ -32,7 +30,7 @@ static const uint8_t state_bitmask[ 8 ] = {
     0b00000001  // STATE_ERROR
 };
 
-bool fsm_set_state( system_state_t new_state );
+esp_err_t fsm_set_state( system_state_t new_state );
 system_state_t fsm_get_state( void );
 void vTaskFSM( void * pvParameters );
 void fsm_init( void );

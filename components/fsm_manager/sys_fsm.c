@@ -23,10 +23,8 @@ static system_state_t current_state = STATE_INIT;
 
 static const char* fsm_tag = "fsm";
 
-static esp_err_t err = ESP_OK;
-static esp_err_t wifi_ret = ESP_OK;
-static esp_err_t nvs_ret = ESP_OK;
-static bool init_nal;
+static esp_err_t err;
+static esp_err_t ret_transition_err;
 
 // FSM task to run
 void vTaskFSM( void * pvParameters )
@@ -36,6 +34,7 @@ void vTaskFSM( void * pvParameters )
     
     for( ;; )
     {
+        // Prevent watchdog triggers and allow task switching
         vTaskDelay(pdMS_TO_TICKS(10));
 
         // FSM logic
@@ -47,6 +46,7 @@ void vTaskFSM( void * pvParameters )
             */
             case STATE_INIT:
             {
+                // Verify if initialization was already performed
                 if ( fsm_status != true )
                 {
                     err = sys_conf_gpio();
@@ -79,6 +79,44 @@ void vTaskFSM( void * pvParameters )
                         break;
                     }
 
+                    // Register an event from event handler
+                    ESP_ERROR_CHECK( esp_event_handler_register( 
+                        WIFI_PROV_EVENT, 
+                        ESP_EVENT_ANY_ID, 
+                        provisioning_event_handler, 
+                        NULL 
+                    ) );
+                }
+
+                // Attempt to transition to the connection state
+                ret_transition_err = fsm_set_state( STATE_WIFI_CONNECTING );
+                if( ret_transition_err != ESP_OK )
+                {
+                    current_state = STATE_ERROR;
+                    break;
+                }
+
+                fsm_status = true;
+                break;
+            }
+            case STATE_WIFI_CONNECTING:
+            {                
+                // Execute WiFi connection logic using stored parameters
+                err = init_wifi_connection();
+                if( err == ESP_OK )
+                {
+                    // Transition to provisioning state once connected
+                    ret_transition_err = fsm_set_state( STATE_MQTT_CONNECTING );
+                    if( ret_transition_err != ESP_OK )
+                    {
+                        current_state = STATE_ERROR;
+                        break;
+                    }
+
+                    break;   
+                } 
+                else
+                {
                     err = init_mdns();
                     if( err != ESP_OK )
                     {
@@ -89,6 +127,7 @@ void vTaskFSM( void * pvParameters )
                         ESP_LOGI(fsm_tag, "mDNS initialized successfully.");
                     }
 
+                    // Start the provisioning service via SoftAP
                     err = init_provisioning();
                     if( err != ESP_OK )
                     {
@@ -96,119 +135,89 @@ void vTaskFSM( void * pvParameters )
                         break;
                     }
 
-                    // Register an event from event handler
-                    ESP_ERROR_CHECK( esp_event_handler_register( 
-                        WIFI_PROV_EVENT, 
-                        ESP_EVENT_ANY_ID, 
-                        provisioning_event_handler, 
-                        NULL 
-                    ) );
-                }
-
-                err = fsm_set_state( STATE_WIFI_CONNECTING );
-                if( err != ESP_OK )
-                {
-                    ESP_LOGE( fsm_tag, "Failed to set state" );
-                    current_state = STATE_ERROR;
-                    break;
+                    ret_transition_err = fsm_set_state( STATE_PROVISIONING );
+                    if( ret_transition_err != ESP_OK )
+                    {
+                        current_state = STATE_ERROR;
+                        break;
+                    }
                 }
 
                 break;
             }
-
-            //TODO: ======================== STOP POINT ========================
-            case STATE_WIFI_CONNECTING:
-            {                
-                wifi_ret = init_wifi_connection();
-                if( wifi_ret != ESP_OK )
-                {
-                    ESP_LOGE( fsm_tag, "Failed to start connection!" );
-                    current_state = STATE_ERROR;
-                    break;
-                }
-
-                ESP_LOGI( fsm_tag, "Successfully connected to the network!" );
-                
-                err |= fsm_set_state( STATE_PROVISIONING );
-                if( err != ESP_OK )
-                {
-                    ESP_LOGE( fsm_tag, "State transition failed." );
-                    current_state = STATE_ERROR;
-                    break;
-                }
-
-                break;
-            }
-
             case STATE_PROVISIONING:
             {
-            
+                break;
             }
             case STATE_MQTT_CONNECTING:
             {
-
+                break;
             }
             case STATE_OPERATIONAL_ONLINE:
             {
-
+                break;
             }
             case STATE_OPERATIONAL_OFFLINE:
             {
-
+                break;
             }
             case STATE_SYNCING:
             {
-
+                break;
             }
-
             // Used for treat all the errors in FSM
             case STATE_ERROR:
             {
-                if( nvs_ret != ESP_OK)
+                if( ret_transition_err == ESP_FAIL)
                 {
-                    panic_dev_restart( LOW_DELAY_TICK_100, nvs_ret);
-                }
-
-                if( init_nal != true)
-                {
-                    panic_dev_restart( LOW_DELAY_TICK_100, init_nal);
-                }
-
-                if( wifi_ret ==  ESP_ERR_TIMEOUT || wifi_ret == ESP_ERR_NOT_FOUND )
-                {
-                    ESP_LOGE( fsm_tag, "Timeout error or resource not found: %s", esp_err_to_name( wifi_ret ) );
-                    current_state = STATE_PROVISIONING;
+                    ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+                    current_state = STATE_INIT;
                     break;
                 }
-
+                
+                // Identify the specific cause of the system failure
                 switch( err )
                 {
                     case ESP_ERR_NO_MEM:
                     {
                         panic_dev_restart( LOW_DELAY_TICK_100, err );
+                    }
+                    case ESP_ERR_WIFI_NOT_CONNECT:
+                    case ESP_ERR_TIMEOUT:
+                    {
+                        // Log the error and fall back to provisioning mode
+                        ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+                        current_state = STATE_PROVISIONING;
                         break;
                     }
+                    case ESP_ERR_WIFI_PASSWORD:
+                    {
+                        // Handle incorrect credentials by restarting provisioning
+                        ESP_LOGE( fsm_tag, "WiFi password incorrect: %s", esp_err_to_name( err ) );
+                        current_state = STATE_PROVISIONING;
+                        break;
+                    }
+                    case ESP_ERR_NOT_FOUND:
                     default:
                     {
+                        // Reset the machine to the initialization state for a fresh start
                         ESP_ERROR_CHECK_WITHOUT_ABORT( err );
                         current_state = STATE_INIT;
                         break;
                     }
                 }
             }
+
+            break;
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        // Periodic delay to manage state machine execution frequency
+        vTaskDelay( pdMS_TO_TICKS( 10 ) );
     }
 }
 
-/*
-    * Used for restart ESP32 completely and log error
-*/
+// Used for restart ESP32 completely and log error
 void panic_dev_restart( TickType_t ms, esp_err_t error_ret )
-{
-    esp_wifi_stop();
-    nvs_flash_deinit();
-    
+{   
     vTaskDelay( pdMS_TO_TICKS( ms ) );
     ESP_ERROR_CHECK( error_ret );
 }
@@ -220,7 +229,7 @@ void fsm_init( void )
 }
 
 // Sets the state of the FSM
-bool fsm_set_state( system_state_t new_state )
+esp_err_t fsm_set_state( system_state_t new_state )
 {   
     /*
         Performs a bitwise AND operation with a mask of 1 to isolate the shifted bit,
@@ -229,16 +238,17 @@ bool fsm_set_state( system_state_t new_state )
     if( ( state_bitmask[ current_state ] >> new_state ) & 1 )
     {   
         current_state = new_state;
-        ESP_LOGI( fsm_tag, "State changed to: %s\n", ( char * )current_state );
-        return true;
+        ESP_LOGI( fsm_tag, "State changed to: %d\n", current_state );
+        return ESP_OK;
     }
     else
     {
+        // Log illegal transition attempt based on the bitmask
         ESP_LOGE(
             fsm_tag,
-            "Cannot change the state: %s to %s\n", ( char * )current_state, ( char * )new_state
+            "Cannot change the state: %d to %d\n", current_state, new_state
         );
-        return false;
+        return ESP_FAIL;
     }
 }
 
