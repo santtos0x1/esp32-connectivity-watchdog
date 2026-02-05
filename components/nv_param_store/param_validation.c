@@ -11,8 +11,8 @@
 
 static nvs_handle_t nvHandle;
 
-const static size_t nvs_data_size[] = { MAX_SSID_LEN, MAX_PASS_LEN, MAX_BSSID_LEN };
-const static char * nvs_params[] = { NVS_PARAM_SSID, NVS_PARAM_PASSWORD, NVS_PARAM_BSSID };
+const static size_t nvs_data_size[] = { MAX_SSID_LEN, MAX_PASS_LEN };
+const static char * nvs_params[] = { NVS_PARAM_SSID, NVS_PARAM_PASSWORD };
 
 const uint8_t arr_size = sizeof( nvs_data_size ) / sizeof( nvs_data_size[ 0 ] );
 
@@ -30,7 +30,7 @@ esp_err_t err = ESP_OK;
 esp_err_t nvs_check_params( wifi_config_data_t * config )
 {
     char * nvs_data[ arr_size ] = {};
-    char * nvs_config_data[] = { config->ssid, config->pass, config->bssid };
+    char * nvs_config_data[] = { config->ssid, config->pass };
 
     nvs_open( NVS_PARTITION_NAMESPACE, NVS_READONLY, &nvHandle );
 

@@ -11,12 +11,11 @@ void app_main(void)
     init_nvs();
     
     // Creates the event loop for notifications and wifi initialization
-    esp_event_loop_create_default();
+    ESP_ERROR_CHECK( esp_event_loop_create_default() );
 
     // Shows ESP32 hardware information
     esp_show_info();
 
     // Starts the FSM logic
     fsm_init();
-    
 }

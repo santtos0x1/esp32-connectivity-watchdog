@@ -6,7 +6,6 @@
 
 #define NVS_PARAM_SSID      "ssid_param"
 #define NVS_PARAM_PASSWORD  "pass_param"
-#define NVS_PARAM_BSSID     "bssid_param"
 
 // Defines the stack buffer for fsm task
 #define V_FSM_STACK_BUFFER 4096

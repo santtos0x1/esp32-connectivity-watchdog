@@ -35,7 +35,6 @@ esp_err_t init_nvs( void )
 
     size_t ssid_size = MAX_SSID_LEN;
     size_t pass_size = MAX_PASS_LEN;
-    size_t bssid_size = MAX_BSSID_LEN;
     
     // Gets the SSID in NVS or get default value
     err = nvs_get_str( nvHandle, NVS_PARAM_SSID, config->ssid, &ssid_size );
@@ -49,13 +48,6 @@ esp_err_t init_nvs( void )
     if ( err == ESP_ERR_NVS_NOT_FOUND )
     {
         strncpy( config->pass, CONFIG_WIFI_SSID, MAX_SSID_LEN );
-    }
-
-    // Gets the bssid in NVS or get default value
-    err = nvs_get_str( nvHandle, NVS_PARAM_BSSID, config->bssid, &bssid_size );
-    if ( err == ESP_ERR_NVS_NOT_FOUND )
-    {
-        strncpy( config->bssid, CONFIG_WIFI_BSSID, MAX_BSSID_LEN );
     }
 
     // Closes the NVS
@@ -84,7 +76,6 @@ esp_err_t set_wf_params_nvs( void )
     
     nvs_set_str( nvHandle, NVS_PARAM_SSID, wifi_data.ssid );
     nvs_set_str( nvHandle, NVS_PARAM_PASSWORD, wifi_data.pass );
-    nvs_set_str( nvHandle, NVS_PARAM_BSSID, wifi_data.bssid );
     
     // Commits the information on NVS
     nvs_commit( nvHandle );
