@@ -41,7 +41,11 @@ esp_err_t init_nvs( void )
     err = nvs_get_str( nvHandle, NVS_PARAM_SSID, config->ssid, &ssid_size );
     if ( err == ESP_ERR_NVS_NOT_FOUND )
     {
-        ESP_LOGW( nvs_tag, "Failed to get SSID in NVS, setting default value: %s", esp_err_to_name( err ) );
+        ESP_LOGW(
+            nvs_tag, 
+            "Failed to get SSID in NVS, setting default value: %s", 
+            esp_err_to_name( err )
+         );
         strncpy( config->ssid, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 
@@ -49,7 +53,11 @@ esp_err_t init_nvs( void )
     err = nvs_get_str( nvHandle, NVS_PARAM_PASSWORD, config->pass, &pass_size );
     if ( err == ESP_ERR_NVS_NOT_FOUND )
     {
-        ESP_LOGW( nvs_tag, "Failed to get password in NVS, setting default value: %s", esp_err_to_name( err ) );
+        ESP_LOGW(
+            nvs_tag, 
+            "Failed to get password in NVS, setting default value: %s", 
+            esp_err_to_name( err )
+        );
         strncpy( config->pass, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 

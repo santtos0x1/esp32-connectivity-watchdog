@@ -43,6 +43,7 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
         {
             ESP_LOGE( integrity_tag, "Failed to retrieve storage data from NVS: %s", esp_err_to_name( err ) );
             nvs_close( nvHandle );
+    
             return err;
         }
 
@@ -58,9 +59,11 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
     {
         ESP_LOGE( integrity_tag, "Integrity check failed: values mismatch!" );
         nvs_close( nvHandle );
+
         return ESP_FAIL;
     }
     
     nvs_close( nvHandle );
+    
     return ESP_OK;
 }

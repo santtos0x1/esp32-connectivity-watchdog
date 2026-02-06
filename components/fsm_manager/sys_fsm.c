@@ -41,8 +41,8 @@ void vTaskFSM( void * pvParameters )
         switch( current_state )
         {
             /*
-                    * @brief Responsible for system-wide hardware and software initialization,
-                    * including GPIO mapping, NVS, and wifi stack configuration.
+                * @brief Responsible for system-wide hardware and software initialization,
+                * including GPIO mapping, NVS, and wifi stack configuration.
             */
             case STATE_INIT:
             {
@@ -151,7 +151,11 @@ void vTaskFSM( void * pvParameters )
                     err = init_mdns();
                     if( err != ESP_OK )
                     {
-                        ESP_LOGW( fsm_tag, "mDNS failed to start (%s). Discovery by name will be unavailable.", esp_err_to_name( err ) );
+                        ESP_LOGW( 
+                            fsm_tag, 
+                            "mDNS failed to start (%s). Discovery by name will be unavailable.", 
+                            esp_err_to_name( err ) 
+                        );
                     }
                     else
                     {
@@ -212,6 +216,7 @@ void vTaskFSM( void * pvParameters )
                 if( ret_transition_err == ESP_FAIL)
                 {
                     ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+                    
                     ret_transition_err = fsm_set_state( STATE_INIT );
                     if( ret_transition_err != ESP_OK )
                     {
@@ -233,6 +238,7 @@ void vTaskFSM( void * pvParameters )
                     {
                         // Log the error and fall back to provisioning mode
                         ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+
                         ret_transition_err = fsm_set_state( STATE_PROVISIONING );
                         if( ret_transition_err != ESP_OK )
                         {
@@ -244,7 +250,11 @@ void vTaskFSM( void * pvParameters )
                     case ESP_ERR_WIFI_PASSWORD:
                     {
                         // Handle incorrect credentials by restarting provisioning
-                        ESP_LOGE( fsm_tag, "WiFi password incorrect: %s", esp_err_to_name( err ) );
+                        ESP_LOGE( 
+                            fsm_tag, 
+                            "WiFi password incorrect: %s", 
+                            esp_err_to_name( err ) 
+                        );
                         ret_transition_err = fsm_set_state( STATE_PROVISIONING );
                         if( ret_transition_err != ESP_OK )
                         {
@@ -258,6 +268,7 @@ void vTaskFSM( void * pvParameters )
                     {
                         // Reset the machine to the initialization state for a fresh start
                         ESP_ERROR_CHECK_WITHOUT_ABORT( err );
+
                         ret_transition_err = fsm_set_state( STATE_INIT );
                         if( ret_transition_err != ESP_OK )
                         {
@@ -273,59 +284,6 @@ void vTaskFSM( void * pvParameters )
         }
         // Periodic delay to manage state machine execution frequency
         vTaskDelay( pdMS_TO_TICKS( 10 ) );
-    }
-}
-
-// Retrieves the name associated with a specific state type
-static const char * state_to_name( system_state_t state )
-{
-    switch( state )
-    {
-        case 0:
-        {
-            return "STATE_INIT";
-            break;
-        }
-        case 1:
-        {
-            return "STATE_WIFI_CONNECTING";
-            break;
-        }
-        case 2:
-        {
-            return "STATE_PROVISIONING";
-            break;
-        }
-        case 3:
-        {
-            return "STATE_MQTT_CONNECTING";
-            break;
-        }
-        case 4:
-        { 
-            return "STATE_OPERATIONAL_ONLINE";
-            break;
-        }
-        case 5:
-        {
-            return "STATE_OPERATIONAL_OFFLINE";
-            break;
-        }
-        case 6:
-        {
-            return "STATE_SYNCING";
-            break;
-        }
-        case 7:
-        {
-            return "STATE_ERROR";
-            break;
-        }
-        default:
-        {
-            return "State not found";
-            break;
-        }
     }
 }
 
@@ -361,7 +319,9 @@ esp_err_t fsm_set_state( system_state_t new_state )
         // Log illegal transition attempt based on the bitmask
         ESP_LOGE(
             fsm_tag,
-            "Cannot change the state: %s to %s", state_to_name( current_state ), state_to_name( new_state )
+            "Cannot change the state: %s to %s", 
+            state_to_name( current_state ),
+            state_to_name( new_state )
         );
 
         return ESP_FAIL;
@@ -372,4 +332,66 @@ esp_err_t fsm_set_state( system_state_t new_state )
 system_state_t fsm_get_state( void )
 {
     return current_state;
+}
+
+// Retrieves the name associated with a specific state type
+static const char * state_to_name( system_state_t state )
+{
+    switch( state )
+    {
+        case 0:
+        {
+            return "STATE_INIT";
+         
+            break;
+        }
+        case 1:
+        {
+            return "STATE_WIFI_CONNECTING";
+         
+            break;
+        }
+        case 2:
+        {
+            return "STATE_PROVISIONING";
+         
+            break;
+        }
+        case 3:
+        {
+            return "STATE_MQTT_CONNECTING";
+            
+            break;
+        }
+        case 4:
+        { 
+            return "STATE_OPERATIONAL_ONLINE";
+            
+            break;
+        }
+        case 5:
+        {
+            return "STATE_OPERATIONAL_OFFLINE";
+            
+            break;
+        }
+        case 6:
+        {
+            return "STATE_SYNCING";
+            
+            break;
+        }
+        case 7:
+        {
+            return "STATE_ERROR";
+            
+            break;
+        }
+        default:
+        {
+            return "State not found";
+
+            break;
+        }
+    }
 }

@@ -11,6 +11,8 @@
 
 #include "softap_provisioning.h"
 
+esp_err_t err;
+
 static const char * prov_tag = "prov";
 
 // Handles background events triggered by the provisioning process
@@ -23,18 +25,25 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
             case WIFI_PROV_START:
             {
                 ESP_LOGI( prov_tag, "Provisioning started!" );
+                
                 break;
             }
             case WIFI_PROV_CRED_RECV:
             {
                 // Extracts SSID from the received configuration data
                 wifi_sta_config_t * wifi_sta_cfg = ( wifi_sta_config_t * ) event_data;
-                ESP_LOGI( prov_tag, "Credential received successfully. SSID: %s", ( char * )wifi_sta_cfg->ssid );
+                ESP_LOGI(
+                    prov_tag, 
+                    "Credential received successfully. SSID: %s", 
+                    ( char * )wifi_sta_cfg->ssid 
+                );
+                
                 break;
             }
             case WIFI_PROV_CRED_SUCCESS:
             {
                 ESP_LOGI( prov_tag, "Successfully connected!" );
+                
                 break;
             }
             case WIFI_PROV_END:
@@ -42,6 +51,7 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
                 // Cleanup resources once provisioning is finished
                 wifi_prov_mgr_deinit();
                 mdns_free();
+                
                 break;
             }
             default:
@@ -55,11 +65,11 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns( void )
 {   
-    esp_err_t err;
     err = mdns_init();
     if( err != ESP_OK )
     {
         ESP_LOGE( prov_tag, "Failed to init the mDSN: %s", esp_err_to_name( err ) );
+        
         return err;
     }
 
@@ -67,6 +77,7 @@ esp_err_t init_mdns( void )
     if( err != ESP_OK )
     {
         ESP_LOGE( prov_tag, "Failed to set hostname: %s", esp_err_to_name( err ) );
+        
         return err;
     }
 
@@ -74,6 +85,7 @@ esp_err_t init_mdns( void )
     if( err != ESP_OK )
     {
         ESP_LOGE( prov_tag, "Failed to set instance name: %s", esp_err_to_name( err ) );
+        
         return err;
     }
 
@@ -83,7 +95,6 @@ esp_err_t init_mdns( void )
 // Sets up and starts the SoftAP provisioning service
 esp_err_t init_provisioning( void )
 {
-    esp_err_t err;
 
     // Use SoftAP scheme (ESP32 acts as an Access Point)
     wifi_prov_mgr_config_t mgr_conf = {
@@ -94,7 +105,12 @@ esp_err_t init_provisioning( void )
     err = wifi_prov_mgr_init( mgr_conf );
     if( err != ESP_OK )
     {
-        ESP_LOGE( prov_tag, "Failed to start provisioning manager configuration: %s", esp_err_to_name( err ) );
+        ESP_LOGE(
+            prov_tag, 
+            "Failed to start provisioning manager configuration: %s", 
+            esp_err_to_name( err ) 
+        );
+        
         return err;
     }
 
@@ -108,7 +124,12 @@ esp_err_t init_provisioning( void )
     );
     if( err != ESP_OK )
     {
-        ESP_LOGE( prov_tag, "Failed to start provisioning manager: %s", esp_err_to_name( err ) );
+        ESP_LOGE( 
+            prov_tag, 
+            "Failed to start provisioning manager: %s", 
+            esp_err_to_name( err ) 
+        );
+        
         return err;
     }
 

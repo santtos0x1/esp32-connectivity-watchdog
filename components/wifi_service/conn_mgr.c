@@ -12,6 +12,10 @@
 static const char * wifi_tag = "wifi";
 static const char * nal_tag  = "nal";
 
+// Creates error handlers 
+esp_err_t err;
+esp_err_t ret;
+
 // Initializes the ESP-WIFI config
 static wifi_config_t wifi_config = {
     .sta = {
@@ -23,13 +27,14 @@ static wifi_config_t wifi_config = {
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 bool init_network_abstraction_layer( void )
 {
-    esp_err_t ret = esp_netif_init();
+    ret = esp_netif_init();
     if( ret != ESP_OK ) 
     {
         ESP_LOGE( nal_tag, "Netif init failed: %s", esp_err_to_name( ret ) );
         return ret;
     }
 
+    // Start AP for provisioning
     esp_netif_create_default_wifi_ap();
 
     esp_netif_create_default_wifi_sta();
@@ -42,9 +47,6 @@ bool init_network_abstraction_layer( void )
 */
 esp_err_t init_wifi_connection( void )
 {
-    // Creates error handlers 
-    esp_err_t err;
-
     // Gets the data from caller-allocated struct
     static wifi_config_data_t wifi_data;
     
@@ -100,7 +102,5 @@ esp_err_t init_wifi_connection( void )
     }
 
     ESP_LOGI( wifi_tag, "Successfully Connected in network!" );
-
-    // If no error, return ESP_OK
     return ESP_OK;
 }
