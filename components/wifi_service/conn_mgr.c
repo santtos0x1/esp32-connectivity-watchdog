@@ -20,9 +20,7 @@ static wifi_config_t wifi_config = {
     }
 };
 
-/*
-    * Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
-*/
+//Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 bool init_network_abstraction_layer( void )
 {
     esp_err_t ret = esp_netif_init();

@@ -1,6 +1,7 @@
+#include "sdkconfig.h"
+
 #include <stdio.h>
 
-#include "sdkconfig.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "wifi_provisioning/manager.h"
@@ -110,4 +111,6 @@ esp_err_t init_provisioning( void )
         ESP_LOGE( prov_tag, "Failed to start provisioning manager: %s", esp_err_to_name( err ) );
         return err;
     }
+
+    return ESP_OK;
 }

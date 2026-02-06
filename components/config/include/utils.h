@@ -1,7 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-
 /*
     This macro simplifies the chip get and reduces byte waste in sys_boot
 */

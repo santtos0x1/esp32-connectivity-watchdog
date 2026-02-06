@@ -1,5 +1,6 @@
 #include "sdkconfig.h"
 #include <stdlib.h>
+
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "nv_params.h"
@@ -11,19 +12,19 @@ static const char* nvs_tag = "nvs";
 
 esp_err_t init_nvs( void )
 {
-    esp_err_t err = ESP_OK;
+    esp_err_t err;
 
     // Starts the NVS storage in flash memory 
-    err |= nvs_flash_init();
-    
+    err = nvs_flash_init();
     if( err != ESP_OK )
     {
+        ESP_LOGE( nvs_tag, "Failed to init NVS flash memory: %s", esp_err_to_name( err ) );
         ESP_ERROR_CHECK( err );
         err = nvs_flash_erase();
     }
 
     // Return the init status
-    return err;
+    return ESP_OK;
 }
 
 /*
@@ -40,6 +41,7 @@ esp_err_t init_nvs( void )
     err = nvs_get_str( nvHandle, NVS_PARAM_SSID, config->ssid, &ssid_size );
     if ( err == ESP_ERR_NVS_NOT_FOUND )
     {
+        ESP_LOGW( nvs_tag, "Failed to get SSID in NVS, setting default value: %s", esp_err_to_name( err ) );
         strncpy( config->ssid, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 
@@ -47,6 +49,7 @@ esp_err_t init_nvs( void )
     err = nvs_get_str( nvHandle, NVS_PARAM_PASSWORD, config->pass, &pass_size );
     if ( err == ESP_ERR_NVS_NOT_FOUND )
     {
+        ESP_LOGW( nvs_tag, "Failed to get password in NVS, setting default value: %s", esp_err_to_name( err ) );
         strncpy( config->pass, CONFIG_WIFI_SSID, MAX_SSID_LEN );
     }
 
@@ -64,11 +67,17 @@ esp_err_t set_wf_params_nvs( void )
     wifi_config_data_t wifi_data;
     esp_err_t err = ESP_OK;
 
-    err |= get_wf_params_nvs( &wifi_data );
-    nvs_open( NVS_PARTITION_NAMESPACE, NVS_READWRITE, &nvHandle );    
+    err = get_wf_params_nvs( &wifi_data );
     if( err != ESP_OK )
     {
-        ESP_LOGI( nvs_tag, "Failed to initialize NVS or failed to get params!" );
+        ESP_LOGE( nvs_tag, "Failed to get params in NVS: %s", esp_err_to_name( err ) );
+        return err;
+    }
+
+    err = nvs_open( NVS_PARTITION_NAMESPACE, NVS_READWRITE, &nvHandle );    
+    if( err != ESP_OK )
+    {
+        ESP_LOGE( nvs_tag, "Failed to open namespace in NVS: %s", esp_err_to_name( err ) );
         return err;
     }
 
@@ -78,6 +87,7 @@ esp_err_t set_wf_params_nvs( void )
     nvs_set_str( nvHandle, NVS_PARAM_PASSWORD, wifi_data.pass );
     
     // Commits the information on NVS
+    ESP_LOGI( nvs_tag, "Committing values to NVS!" );
     nvs_commit( nvHandle );
     
     // Closes the NVS

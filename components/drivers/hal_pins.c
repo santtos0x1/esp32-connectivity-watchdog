@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "driver/gpio.h"
+#include "esp_log.h"
 
 #include "hal_map.h"
 
@@ -22,7 +23,7 @@ esp_err_t sys_conf_gpio( void )
     esp_err_t err = gpio_config( &io_conf_led );
     if( err != ESP_OK )
     {
-        ESP_LOGE( "Failed to start GPIO configuration: %s", esp_err_to_name( err ) );
+        ESP_LOGE("", "Failed to start GPIO configuration: %s", esp_err_to_name( err ) );
         return err;
     }
     

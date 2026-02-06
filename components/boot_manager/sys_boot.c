@@ -21,7 +21,7 @@ typedef struct {
 
 /**
  * Hardware features lookup table.
- * * Maps bitmask flags (CHIP_FEATURE_*) to human-readable strings for
+ * Maps bitmask flags (CHIP_FEATURE_*) to human-readable strings for
  * system diagnostics and boot-up reporting.
  */
 static const feature_name_t features_map[ 6 ] = {
@@ -33,6 +33,7 @@ static const feature_name_t features_map[ 6 ] = {
     { CHIP_FEATURE_EMB_PSRAM,  "Embedded psram" }
 };
 
+/*
 // Displays the system splash screen and branding.
 void boot_logo( void )
 {
@@ -40,6 +41,7 @@ void boot_logo( void )
     ESP_LOGI(boot_tag, "  NS MONITOR - Connectivity watchdog ");
     ESP_LOGI(boot_tag, "======================================");
 }
+*/
 
 // Monitors both total and internal memory regions.
 void esp_heap_info_internal( void )
@@ -90,7 +92,7 @@ void esp_chip_info_internal( void )
 // Executes the full system diagnostic and identification sequence.
 void esp_show_info( void )
 {
-    boot_logo();
+    // boot_logo();
     esp_heap_info_internal();
     esp_chip_info_internal();
 }
