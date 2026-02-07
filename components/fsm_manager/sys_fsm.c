@@ -23,12 +23,12 @@ static system_state_t current_state = STATE_INIT;
 
 static const char * fsm_tag = "fsm";
 
-static esp_err_t err;
-static esp_err_t ret_transition_err;
-
 // FSM task to run
 void vTaskFSM( void * pvParameters )
 {
+    static esp_err_t err;
+    static esp_err_t ret_transition_err;
+
     // Uses default initial configuration
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT(); 
     
@@ -290,8 +290,16 @@ void vTaskFSM( void * pvParameters )
 // Used for restart ESP32 completely and log error
 void panic_dev_restart( TickType_t ms, esp_err_t error_ret )
 {   
-    vTaskDelay( pdMS_TO_TICKS( ms ) );
-    ESP_ERROR_CHECK( error_ret );
+    if( ms > 0 )
+    {
+        vTaskDelay( pdMS_TO_TICKS( ms ) );    
+    }
+
+    ESP_LOGE( fsm_tag, "PANIC Restart error: %s ", esp_err_to_name( error_ret ) );
+    esp_restart();
+
+    // Fallback: prevent returning if restart sequence fails
+    for( ;; ){}; 
 }
 
 // Responsible for the task creation
@@ -335,7 +343,7 @@ system_state_t fsm_get_state( void )
 }
 
 // Retrieves the name associated with a specific state type
-static const char * state_to_name( system_state_t state )
+const char * state_to_name( system_state_t state )
 {
     switch( state )
     {

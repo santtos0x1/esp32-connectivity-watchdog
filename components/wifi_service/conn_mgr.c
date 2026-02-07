@@ -102,5 +102,6 @@ esp_err_t init_wifi_connection( void )
     }
 
     ESP_LOGI( wifi_tag, "Successfully Connected in network!" );
+    
     return ESP_OK;
 }

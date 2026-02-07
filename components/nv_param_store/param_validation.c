@@ -17,17 +17,17 @@ static const char * integrity_tag = "integrity";
 
 nvs_stats_t nvs_stats;
 
-esp_err_t err;
-
 /*
     * Validate NVS parameters to ensure all required configuration fields are populated
 */
 esp_err_t nvs_check_params( wifi_config_data_t * config )
 {
-    // Initialize the result value
-    uint8_t op_result = 0b00000000;
+    esp_err_t err;
     
-    char nvs_buff[64];
+    // Initialize the result value
+    static uint8_t op_result = 0x00;
+
+    char nvs_buff[ 64 ];
     char * nvs_config_data[] = { config->ssid, config->pass };
 
     nvs_open( NVS_PARTITION_NAMESPACE, NVS_READONLY, &nvHandle );
@@ -35,7 +35,7 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
     for( uint8_t i = 0 ; i < 2 ; i++ )
     {
         size_t read_length;
-        read_length = sizeof(nvs_buff);
+        read_length = sizeof( nvs_buff );
         
         // Retrieves stored values from NVS and validates them against expected value.
         err = nvs_get_str( nvHandle, nvs_params[ i ], nvs_buff, &read_length );
@@ -54,8 +54,8 @@ esp_err_t nvs_check_params( wifi_config_data_t * config )
 
         nvs_buff[ 0 ] = '\0';
     }
-
-    if( op_result != 0b00000011 )
+    
+    if( op_result != 0x03 )
     {
         ESP_LOGE( integrity_tag, "Integrity check failed: values mismatch!" );
         nvs_close( nvHandle );

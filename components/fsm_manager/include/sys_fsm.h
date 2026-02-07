@@ -35,6 +35,6 @@ system_state_t fsm_get_state( void );
 void vTaskFSM( void * pvParameters );
 void fsm_init( void );
 void panic_dev_restart( TickType_t ms, esp_err_t error_ret ) __attribute__((noreturn));
-static const char * state_to_name( system_state_t state );
+const char * state_to_name( system_state_t state );
 
 #endif // !SYS_FSM_H

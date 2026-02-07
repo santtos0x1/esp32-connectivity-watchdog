@@ -11,8 +11,6 @@
 
 #include "softap_provisioning.h"
 
-esp_err_t err;
-
 static const char * prov_tag = "prov";
 
 // Handles background events triggered by the provisioning process
@@ -65,6 +63,8 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns( void )
 {   
+    esp_err_t err;
+    
     err = mdns_init();
     if( err != ESP_OK )
     {
@@ -95,7 +95,8 @@ esp_err_t init_mdns( void )
 // Sets up and starts the SoftAP provisioning service
 esp_err_t init_provisioning( void )
 {
-
+    esp_err_t err;
+    
     // Use SoftAP scheme (ESP32 acts as an Access Point)
     wifi_prov_mgr_config_t mgr_conf = {
         .scheme = wifi_prov_scheme_softap,
