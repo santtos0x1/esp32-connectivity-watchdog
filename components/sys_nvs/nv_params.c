@@ -6,8 +6,6 @@
 #include "nv_params.h"
 #include "sys_conf.h"
 
-// Sets information for set_wf function and debugging
-static nvs_handle_t nvHandle;
 static const char* nvs_tag = "nvs"; 
 
 esp_err_t init_nvs( void )
