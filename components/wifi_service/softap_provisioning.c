@@ -29,7 +29,7 @@ void provisioning_event_handler( void * arg, esp_event_base_t event_base, int32_
             case WIFI_PROV_CRED_RECV:
             {
                 // Extracts SSID from the received configuration data
-                wifi_sta_config_t * wifi_sta_cfg = ( wifi_sta_config_t * ) event_data;
+                wifi_sta_config_t * wifi_sta_cfg = ( wifi_sta_config_t * )event_data;
                 ESP_LOGI(
                     prov_tag, 
                     "Credential received successfully. SSID: %s", 
@@ -73,7 +73,7 @@ esp_err_t init_mdns( void )
         return err;
     }
 
-    err = mdns_hostname_set("ns-monitor-devconf");
+    err = mdns_hostname_set( "ns-monitor-devconf" );
     if( err != ESP_OK )
     {
         ESP_LOGE( prov_tag, "Failed to set hostname: %s", esp_err_to_name( err ) );
@@ -81,7 +81,7 @@ esp_err_t init_mdns( void )
         return err;
     }
 
-    err = mdns_instance_name_set("NS Monitor config");
+    err = mdns_instance_name_set( "NS Monitor config" );
     if( err != ESP_OK )
     {
         ESP_LOGE( prov_tag, "Failed to set instance name: %s", esp_err_to_name( err ) );
@@ -95,6 +95,7 @@ esp_err_t init_mdns( void )
 // Sets up and starts the SoftAP provisioning service
 esp_err_t init_provisioning( void )
 {
+    bool provisioned = false;
     esp_err_t err;
     
     // Use SoftAP scheme (ESP32 acts as an Access Point)
@@ -103,34 +104,44 @@ esp_err_t init_provisioning( void )
         .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE
     };
 
-    err = wifi_prov_mgr_init( mgr_conf );
-    if( err != ESP_OK )
-    {
-        ESP_LOGE(
-            prov_tag, 
-            "Failed to start provisioning manager configuration: %s", 
-            esp_err_to_name( err ) 
-        );
-        
-        return err;
-    }
+    wifi_prov_mgr_is_provisioned( &provisioned );
 
-    // Start provisioning with Security 1 (requires PoP)
-    err = wifi_prov_mgr_start_provisioning(
-        WIFI_PROV_SECURITY_1, 
-        CONFIG_WIFI_AP_PROV_POP, 
-        CONFIG_WIFI_AP_PROV_SSID,
-        NULL
-    );
-    if( err != ESP_OK )
+    if (provisioned) {
+        ESP_LOGI(prov_tag, "Device already provisioned. Skipping manager init.");
+        return ESP_ERR_INVALID_STATE;
+    }
+    
+    if( !provisioned )
     {
-        ESP_LOGE( 
-            prov_tag, 
-            "Failed to start provisioning manager: %s", 
-            esp_err_to_name( err ) 
+        err = wifi_prov_mgr_init( mgr_conf );
+        if( err != ESP_OK )
+        {
+            ESP_LOGE(
+                prov_tag, 
+                "Failed to start provisioning manager configuration: %s", 
+                esp_err_to_name( err ) 
+            );
+
+            return err;
+        }
+
+        // Start provisioning with Security 1 (requires PoP)
+        err = wifi_prov_mgr_start_provisioning(
+            WIFI_PROV_SECURITY_1, 
+            CONFIG_WIFI_AP_PROV_POP, 
+            CONFIG_WIFI_AP_PROV_SSID,
+            NULL
         );
-        
-        return err;
+        if( err != ESP_OK )
+        {
+            ESP_LOGE( 
+                prov_tag, 
+                "Failed to start provisioning manager: %s", 
+                esp_err_to_name( err ) 
+            );
+
+            return err;
+        }
     }
 
     return ESP_OK;

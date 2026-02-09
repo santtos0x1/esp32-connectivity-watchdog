@@ -61,18 +61,6 @@ void vTaskFSM( void * pvParameters )
                         break; 
                     }
 
-                     // Initializes NVS to store Wi-Fi credentials (SSID and password). 
-                    err = set_wf_params_nvs();
-                    if ( err != ESP_OK ) {
-                        ret_transition_err = fsm_set_state( STATE_ERROR );
-                        if( ret_transition_err != ESP_OK )
-                        {
-                            panic_dev_restart( 100, ret_transition_err );
-                        }
-                
-                        break;
-                    }
-
                     // Sets up network layer and wifi configuration 
                     err = init_network_abstraction_layer();
                     if( err != ESP_OK )
@@ -309,14 +297,21 @@ void fsm_init( void )
     xTaskCreate( vTaskFSM, "FSM", V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL );
 }
 
+/*
+    Performs a bitwise AND operation with a mask of 1 to isolate the shifted bit,
+    returning its boolean state.
+*/
+uint8_t bitwise_nav( uint8_t * bitmask_state, system_state_t c_state, system_state_t n_state)
+{
+    return (bitmask_state[ c_state ] >> n_state ) & 1;
+}
+
 // Sets the state of the FSM
 esp_err_t fsm_set_state( system_state_t new_state )
 {   
-    /*
-        Performs a bitwise AND operation with a mask of 1 to isolate the shifted bit,
-        returning its boolean state.
-    */
-    if( ( state_bitmask[ current_state ] >> new_state ) & 1 )
+    uint8_t bitwise_op = bitwise_nav(state_bitmask, current_state, new_state);
+
+    if( bitwise_op )
     {   
         current_state = new_state;
         ESP_LOGI( fsm_tag, "State changed to: %s", state_to_name( current_state ) );
