@@ -116,7 +116,6 @@ esp_err_t init_provisioning( void )
     }
 
     // Start provisioning with Security 1 (requires PoP)
-
     err = wifi_prov_mgr_start_provisioning(
         WIFI_PROV_SECURITY_1, 
         CONFIG_WIFI_AP_PROV_POP, 

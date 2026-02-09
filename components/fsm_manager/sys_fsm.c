@@ -192,6 +192,7 @@ void vTaskFSM( void * pvParameters )
             }
             case STATE_PROVISIONING:
             {
+                vTaskDelay( pdMS_TO_TICKS( 100 ) );
                 break;
             }
             case STATE_MQTT_CONNECTING:
