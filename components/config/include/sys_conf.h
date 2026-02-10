@@ -12,4 +12,12 @@
 
 // Delays
 #define LOW_DELAY_TICK_100 100
+
+#define DELAY_HW_TICK_US        MS_TO_US(1)
+#define DELAY_HW_STABILIZE_US   MS_TO_US(10)
+#define DELAY_HW_RESET_US       MS_TO_US(50)
+
+#define DELAY_UI_REFRESH_US     MS_TO_US(200)
+#define DELAY_BOOT_BANNER_US    MS_TO_US(500)
+
 #endif // !SYS_CONF_H
