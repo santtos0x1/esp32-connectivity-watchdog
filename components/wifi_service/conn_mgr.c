@@ -17,7 +17,7 @@ esp_err_t err;
 esp_err_t ret;
 
 // Initializes the ESP-WIFI config
-static wifi_config_t wifi_config = {0};
+wifi_config_t wifi_config = {0};
 
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 bool init_network_abstraction_layer(void)

@@ -8,10 +8,31 @@
 #include "wifi_provisioning/scheme_softap.h"
 #include "esp_log.h"
 #include "mdns.h"
+#include "esp_http_server.h"
 
 #include "softap_provisioning.h"
 
 static const char *prov_tag = "prov";
+static httpd_handle_t server = NULL;
+
+esp_err_t root_handler(httpd_req_t *req)
+{
+    ESP_LOGI(prov_tag, "HTTP GET request on root URI. Connection validated.");
+
+    return ESP_OK;
+}
+
+void register_url_handlers(httpd_handle_t server)
+{
+    httpd_uri_t root = {
+        .uri = "/",
+        .method = HTTP_GET,
+        .handler = root_handler,
+        .user_ctx = NULL
+    };
+
+    httpd_register_uri_handler(server, &root);
+}
 
 // Handles background events triggered by the provisioning process
 void provisioning_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -142,6 +163,10 @@ esp_err_t init_provisioning(void)
 
             return err;
         }
+        //TODO: Silent the / endpoint warning
+        //err = wifi_prov_mgr_get_
+
+        //err = register_url_handlers();
     }
 
     return ESP_OK;
