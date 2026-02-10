@@ -3,6 +3,6 @@
 
 #include "nvs_flash.h"
 
-esp_err_t init_nvs( void );
+esp_err_t init_nvs(void);
 
 #endif // !NV_PARAMS_H

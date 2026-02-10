@@ -8,16 +8,16 @@
 
 static const char* nvs_tag = "nvs"; 
 
-esp_err_t init_nvs( void )
+esp_err_t init_nvs(void)
 {
     esp_err_t err;
 
     // Starts the NVS storage in flash memory 
     err = nvs_flash_init();
-    if( err != ESP_OK )
+    if(err != ESP_OK)
     {
-        ESP_LOGE( nvs_tag, "Failed to init NVS flash memory: %s", esp_err_to_name( err ) );
-        ESP_ERROR_CHECK( err );
+        ESP_LOGE(nvs_tag, "Failed to init NVS flash memory: %s", esp_err_to_name(err));
+        ESP_ERROR_CHECK(err);
         err = nvs_flash_erase();
     }
 
