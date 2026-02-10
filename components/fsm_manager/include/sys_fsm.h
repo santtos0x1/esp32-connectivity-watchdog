@@ -30,11 +30,17 @@ static const uint8_t state_bitmask[8] = {
 };
 
 esp_err_t fsm_set_state(system_state_t new_state);
+
 system_state_t fsm_get_state(void);
+
 void vTaskFSM(void *pvParameters);
+
 void fsm_init(void);
+
 void panic_dev_restart(TickType_t ms, esp_err_t error_ret) __attribute__((noreturn));
+
 const char *state_to_name(system_state_t state);
+
 uint8_t bitwise_nav(const uint8_t *bitmask_state, system_state_t c_state, system_state_t n_state);
 
 #endif // !SYS_FSM_H
