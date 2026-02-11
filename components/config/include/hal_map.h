@@ -2,6 +2,6 @@
 #define HAL_MAP_H
 
 // Pins
-#define FEEDBACK_LED_PIN 18
+#define FEEDBACK_LED_PIN 2
 
 #endif // !HAL_MAP_H

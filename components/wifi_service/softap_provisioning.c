@@ -138,6 +138,24 @@ esp_err_t init_provisioning(void)
             return err;
         }
 
+        /*
+        err = wifi_prov_mgr_endpoint_create("custom-data");
+        if(err != ESP_OK)
+        {
+            ESP_LOGE(prov_tag, "Failed to create 'custom-data' endpoint: %s", esp_err_to_name(err));
+            return err;
+        }
+        else 
+        {
+            err = wifi_prov_mgr_endpoint_register("custom-data", root_callback, NULL);
+            if(err != ESP_OK)
+            {
+                ESP_LOGE(prov_tag, "Failed to register 'custom-data' endpoint");
+                return err;
+            }
+        } 
+        */
+
         // Start provisioning with Security 1 (requires PoP)
         err = wifi_prov_mgr_start_provisioning(
             WIFI_PROV_SECURITY_1, 
@@ -156,20 +174,7 @@ esp_err_t init_provisioning(void)
             return err;
         }
 
-        err = wifi_prov_mgr_endpoint_create("/");
-        if(err != ESP_OK)
-        {
-            ESP_LOGE(prov_tag, "Failed to create '/' endpoint: %s", esp_err_to_name(err));
-            return err;
-        }
-        {
-            err = wifi_prov_mgr_endpoint_register("/", root_callback, NULL);
-            if(err != ESP_OK)
-            {
-                ESP_LOGE(prov_tag, "Failed to register '/' endpoint");
-                return err;
-            }
-        } 
+        
     }
 
     return ESP_OK;

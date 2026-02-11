@@ -4,6 +4,8 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "wifi_provisioning/manager.h"
+#include "wifi_provisioning/scheme_softap.h"
 
 #include "nv_params.h"
 #include "conn_mgr.h"
@@ -20,8 +22,10 @@ esp_err_t ret;
 wifi_config_t wifi_config = {0};
 
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
-bool init_network_abstraction_layer(void)
+esp_err_t init_network_abstraction_layer(void)
 {
+    wifi_prov_mgr_deinit();
+
     ret = esp_netif_init();
     if(ret != ESP_OK) 
     {

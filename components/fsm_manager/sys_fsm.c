@@ -28,6 +28,8 @@ static const char *fsm_tag = "fsm";
 // FSM task to run
 void vTaskFSM(void *pvParameters)
 {
+    //boot_fb(FEEDBACK_LED_PIN);
+
     // Initializes errors handlers
     static esp_err_t err;
     static esp_err_t ret_transition_err;
@@ -69,8 +71,13 @@ void vTaskFSM(void *pvParameters)
                     }
                     else
                     {
+                        ESP_LOGI(fsm_tag, "GPIO config initialized successfully!");
                         ini_bit <<= 1;
                     }
+
+                    boot_fb(FEEDBACK_LED_PIN);
+
+                    vTaskDelay(pdMS_TO_TICKS(300));
 
                     // Sets up network layer and wifi configuration 
                     err = init_network_abstraction_layer();
@@ -86,6 +93,7 @@ void vTaskFSM(void *pvParameters)
                     }
                     else
                     {
+                        ESP_LOGI(fsm_tag, "NAL initialized successfully!");
                         ini_bit <<= 1;
                     }
 
@@ -103,6 +111,7 @@ void vTaskFSM(void *pvParameters)
                     }
                     else
                     {
+                        ESP_LOGI(fsm_tag, "WiFi initialized successfully!");
                         ini_bit <<= 1;
                     }
 
@@ -117,7 +126,12 @@ void vTaskFSM(void *pvParameters)
                     if(ini_bit == 0x08)
                     {
                         fsm_status = true;
-                        success_fb(FEEDBACK_LED_PIN);
+                        ESP_LOGI(
+                            fsm_tag,
+                            "Initialization complete. Mask: 0x%02X | Status: %s",
+                            ini_bit, fsm_status ? "READY" : "FAILED"
+                        );
+                        //success_fb(FEEDBACK_LED_PIN);
                         
                         // Attempt to transition to the connection state
                         ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
