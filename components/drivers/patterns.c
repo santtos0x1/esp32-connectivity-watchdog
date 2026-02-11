@@ -7,6 +7,7 @@
 #include "sys_conf.h"
 #include "patterns.h"
 
+// Success feedback in LED;
 void success_fb(uint8_t led_pinout)
 {
     for(uint8_t i = 0; i < 3; i++)
@@ -18,6 +19,7 @@ void success_fb(uint8_t led_pinout)
     }    
 }
 
+// Fail feedback in LED;
 void fail_fb(uint8_t led_pinout)
 {
     for(uint8_t i = 0; i < 10; i++) 
@@ -29,6 +31,7 @@ void fail_fb(uint8_t led_pinout)
     }    
 }
 
+// Boot feedback in LED;
 void boot_fb(uint8_t led_pinout)
 {
     for(uint8_t i = 0; i < 2; i++)

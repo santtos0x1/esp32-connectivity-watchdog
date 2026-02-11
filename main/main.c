@@ -4,6 +4,8 @@
 #include "sys_fsm.h"
 #include "esp_event.h"
 #include "sys_boot.h"
+#include "patterns.h"
+#include "hal_map.h"
 
 void app_main(void)
 {
@@ -15,6 +17,8 @@ void app_main(void)
 
     // Shows ESP32 hardware information
     esp_show_info();
+
+    boot_fb(FEEDBACK_LED_PIN);
 
     // Starts the FSM logic
     fsm_init();

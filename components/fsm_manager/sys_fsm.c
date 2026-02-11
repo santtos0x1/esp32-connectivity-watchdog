@@ -139,8 +139,6 @@ void vTaskFSM(void *pvParameters)
                     }
                 }
 
-                
-                
                 break;
             }
             case STATE_WIFI_CONNECTING:
