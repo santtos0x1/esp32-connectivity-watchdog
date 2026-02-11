@@ -12,8 +12,10 @@
 
 #include "sys_fsm.h"
 #include "hal_pins.h"
+#include "patterns.h"
 #include "nv_params.h"
 #include "conn_mgr.h"
+#include "hal_map.h"
 #include "sys_conf.h"
 #include "softap_provisioning.h"
 
@@ -26,14 +28,17 @@ static const char *fsm_tag = "fsm";
 // FSM task to run
 void vTaskFSM(void *pvParameters)
 {
+    // Initializes errors handlers
     static esp_err_t err;
     static esp_err_t ret_transition_err;
 
     // Uses default initial configuration
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT(); 
-    
+
     for(;;)
     {
+        uint8_t ini_bit = 0x01;
+
         // Prevent watchdog triggers and allow task switching
         vTaskDelay(pdMS_TO_TICKS(10));
 
@@ -46,8 +51,10 @@ void vTaskFSM(void *pvParameters)
             */
             case STATE_INIT:
             {
+                ini_bit = 0x01;
+                
                 // Verify if initialization was already performed
-                if(fsm_status != true)
+                if(fsm_status == false)
                 {
                     err = sys_conf_gpio();
                     if(err != ESP_OK)
@@ -57,8 +64,12 @@ void vTaskFSM(void *pvParameters)
                         {
                             panic_dev_restart(100, ret_transition_err);
                         }
-                
+
                         break; 
+                    }
+                    else
+                    {
+                        ini_bit <<= 1;
                     }
 
                     // Sets up network layer and wifi configuration 
@@ -70,8 +81,12 @@ void vTaskFSM(void *pvParameters)
                         {
                             panic_dev_restart(100, ret_transition_err);
                         }
-                
+
                         break;
+                    }
+                    else
+                    {
+                        ini_bit <<= 1;
                     }
 
                     // Initializes WiFi connection;
@@ -83,33 +98,48 @@ void vTaskFSM(void *pvParameters)
                         {
                             panic_dev_restart(100, ret_transition_err);
                         }
-                
+
                         break;
+                    }
+                    else
+                    {
+                        ini_bit <<= 1;
                     }
 
                     // Register an event from event handler
                     ESP_ERROR_CHECK(esp_event_handler_register(
-                        WIFI_PROV_EVENT, 
-                        ESP_EVENT_ANY_ID, 
-                        provisioning_event_handler, 
-                        NULL 
+                        WIFI_PROV_EVENT,
+                        ESP_EVENT_ANY_ID,
+                        provisioning_event_handler,
+                        NULL
                     ));
-                }
 
-                // Attempt to transition to the connection state
-                ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
-                if(ret_transition_err != ESP_OK)
-                {
-                    ret_transition_err = fsm_set_state(STATE_ERROR);
-                    if(ret_transition_err != ESP_OK)
+                    if(ini_bit == 0x08)
                     {
-                        panic_dev_restart(100, ret_transition_err);
+                        fsm_status = true;
+                        success_fb(FEEDBACK_LED_PIN);
+                        
+                        // Attempt to transition to the connection state
+                        ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            ret_transition_err = fsm_set_state(STATE_ERROR);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                panic_dev_restart(100, ret_transition_err);
+                            }
+                        
+                            break;
+                        }
+                    } 
+                    else
+                    {
+                        fsm_status = false;
+                        fail_fb(FEEDBACK_LED_PIN);
                     }
-                
-                    break;
                 }
 
-                fsm_status = true;
+                
                 
                 break;
             }
