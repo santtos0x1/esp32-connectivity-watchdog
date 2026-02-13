@@ -8,14 +8,14 @@
 #define NVS_PARAM_PASSWORD       "pass_param"
 
 // Defines the stack buffer for fsm task
-#define V_FSM_STACK_BUFFER 4096
+#define V_FSM_STACK_BUFFER  4096
 
 // Defines the stack buffer for mqtt task
 #define V_MQTT_STACK_BUFFER 2048
 
 // Conversion macros
-#define SEC_TO_US(s)       ((s) * 1000000ULL)
-#define MS_TO_US(ms)       ((ms) * 1000ULL)
+#define SEC_TO_US(s)            ((s) * 1000000ULL)
+#define MS_TO_US(ms)            ((ms) * 1000ULL)
 
 // Delays
 #define LOW_DELAY_TICK_100 100

@@ -32,16 +32,6 @@ static const feature_name_t features_map[6] = {
     {CHIP_FEATURE_EMB_PSRAM,  "Embedded psram"}
 };
 
-/*
-// Displays the system splash screen and branding.
-void boot_logo(void)
-{
-    ESP_LOGI(boot_tag, "======================================");
-    ESP_LOGI(boot_tag, "  NS MONITOR - Connectivity watchdog ");
-    ESP_LOGI(boot_tag, "======================================");
-}
-*/
-
 // Monitors both total and internal memory regions.
 void esp_heap_info_internal(void)
 {

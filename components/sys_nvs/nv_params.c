@@ -18,6 +18,7 @@ esp_err_t init_nvs(void)
     {
         ESP_LOGE(nvs_tag, "Failed to init NVS flash memory: %s", esp_err_to_name(err));
         ESP_ERROR_CHECK(err);
+        
         err = nvs_flash_erase();
     }
 

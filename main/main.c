@@ -4,6 +4,7 @@
 #include "sys_fsm.h"
 #include "esp_event.h"
 #include "sys_boot.h"
+#include "sys_diag.h"
 
 void app_main(void)
 {
@@ -18,4 +19,6 @@ void app_main(void)
 
     // Starts the FSM logic
     fsm_init();
+
+    init_diag();
 }
