@@ -34,14 +34,16 @@ static const char *fsm_tag = "fsm";
 // FSM task to run
 void vTaskFSM(void *pvParameters)
 {
-    //boot_fb(FEEDBACK_LED_PIN);
-
     // Initializes errors handlers
     static esp_err_t err;
     static esp_err_t ret_transition_err;
 
+    ping_result_t report_global;
+
     // Uses default initial configuration
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT(); 
+
+    ping_queue = xQueueCreate(10, sizeof(report_global));
 
     for(;;)
     {
@@ -245,9 +247,13 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_OPERATIONAL_ONLINE:
             {   // Publish information on mqtt broker
-                ping_queue = xQueueCreate(10, sizeof(report_global));
 
                 initialize_ping(ping_queue);
+
+                if(xQueueReceive(ping_queue, &report_global, portMAX_DELAY) == pdPASS)
+                {
+                    // Receive values from queue
+                }
 
                 break;
             }

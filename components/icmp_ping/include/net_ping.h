@@ -19,6 +19,6 @@ void cmd_ping_on_ping_timeout(esp_ping_handle_t hdl, void *args);
 
 void cmd_ping_end(esp_ping_handle_t hdl, void *args);
 
-void initialize_ping(QueueHandle_t result_q);
+esp_err_t initialize_ping(QueueHandle_t result_q);
 
 #endif // !NET_PING_H
