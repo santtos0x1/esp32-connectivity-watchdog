@@ -8,8 +8,20 @@
 #include "mqtt_service.h"
 #include "sys_conf.h"
 
-//TODO: THIS TASK WILL HANDLE THE SUBSCRIPTIONS ON MQTT, THEREFORE, THE RECEIVED COMMANDS
-//TODO: AND THE FSM TASK WILL HANDLE THE PUBLISHING, THEREFORE, SENDING DATA TO THE BROKER
+// Defines the stack buffer for mqtt task
+#define V_MQTT_STACK_BUFFER 2048
+
+/**
+ * @brief MQTT Consumer Task: Handles incoming traffic.
+ * Responsible for managing MQTT subscriptions and processing 
+ * received commands from the broker.
+ */
+
+/**
+ * @brief FSM Producer Task: Handles outgoing traffic.
+ * Manages the system state machine and triggers data publishing
+ * to the broker based on state transitions.
+ */
 
 static const char *mqtt_tag = "mqtt";
 
@@ -63,5 +75,5 @@ void vTaskMQTT(void *pvParameters)
 
 void mqtt_init(void)
 {
-    xTaskCreate(vTaskMQTT, "MQTT_TASK", V_MQTT_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(vTaskMQTT, V_MQTT_TASK_NAME, V_MQTT_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
 }

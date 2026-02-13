@@ -19,6 +19,9 @@
 #include "sys_conf.h"
 #include "softap_provisioning.h"
 
+// Defines the stack buffer for fsm task
+#define V_FSM_STACK_BUFFER  4096
+
 static bool fsm_status = false;
 
 static system_state_t current_state = STATE_INIT;
@@ -42,7 +45,7 @@ void vTaskFSM(void *pvParameters)
         uint8_t ini_bit = 0x01;
 
         // Prevent watchdog triggers and allow task switching
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
 
         // FSM logic
         switch(current_state)
@@ -61,10 +64,11 @@ void vTaskFSM(void *pvParameters)
                     err = sys_conf_gpio();
                     if(err != ESP_OK)
                     {
+                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
 
                         break; 
@@ -77,16 +81,17 @@ void vTaskFSM(void *pvParameters)
 
                     boot_fb(FEEDBACK_LED_PIN);
 
-                    vTaskDelay(pdMS_TO_TICKS(300));
+                    vTaskDelay(pdMS_TO_TICKS(DELAY_UI_REFRESH_MS));
 
                     // Sets up network layer and wifi configuration 
                     err = init_network_abstraction_layer();
                     if(err != ESP_OK)
                     {
+                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
 
                         break;
@@ -101,10 +106,11 @@ void vTaskFSM(void *pvParameters)
                     err = esp_wifi_init(&init_cfg);
                     if(err != ESP_OK)
                     {
+                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
 
                         break;
@@ -137,10 +143,11 @@ void vTaskFSM(void *pvParameters)
                         ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
                         if(ret_transition_err != ESP_OK)
                         {
+                            // Sets state to STATE_ERROR
                             ret_transition_err = fsm_set_state(STATE_ERROR);
                             if(ret_transition_err != ESP_OK)
                             {
-                                panic_dev_restart(100, ret_transition_err);
+                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                             }
                         
                             break;
@@ -165,10 +172,11 @@ void vTaskFSM(void *pvParameters)
                     ret_transition_err = fsm_set_state(STATE_MQTT_CONNECTING);
                     if(ret_transition_err != ESP_OK)
                     {
+                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
                     
                         break;
@@ -178,6 +186,7 @@ void vTaskFSM(void *pvParameters)
                 } 
                 else
                 {
+                    // Starts mDNS configuration
                     err = init_mdns();
                     if(err != ESP_OK)
                     {
@@ -196,22 +205,24 @@ void vTaskFSM(void *pvParameters)
                     err = init_provisioning();
                     if(err != ESP_OK)
                     {
+                        // Sets state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
                     
                         break;
                     }
 
+                    // Set state to STATE_PROVISIONING
                     ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                     if(ret_transition_err != ESP_OK)
                     {
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
                     
                         break;
@@ -222,7 +233,7 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_PROVISIONING:
             {
-                vTaskDelay(pdMS_TO_TICKS(100));
+                vTaskDelay(pdMS_TO_TICKS(LOW_DELAY_TICK_MS));
                 break;
             }
             case STATE_MQTT_CONNECTING:
@@ -248,10 +259,11 @@ void vTaskFSM(void *pvParameters)
                 {
                     ESP_ERROR_CHECK_WITHOUT_ABORT(err);
                     
+                    // Sets state to STATE_INIT
                     ret_transition_err = fsm_set_state(STATE_INIT);
                     if(ret_transition_err != ESP_OK)
                     {
-                        panic_dev_restart(100, ret_transition_err);
+                        panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                     }
 
                     break;
@@ -262,7 +274,7 @@ void vTaskFSM(void *pvParameters)
                 {
                     case ESP_ERR_NO_MEM:
                     {
-                        panic_dev_restart(LOW_DELAY_TICK_100, err);
+                        panic_dev_restart(LOW_DELAY_TICK_MS, err);
                     }
                     case ESP_ERR_WIFI_NOT_CONNECT:
                     case ESP_ERR_TIMEOUT:
@@ -270,10 +282,11 @@ void vTaskFSM(void *pvParameters)
                         // Log the error and fall back to provisioning mode
                         ESP_ERROR_CHECK_WITHOUT_ABORT(err);
 
+                        // Sets state to STATE_PROVISIONING
                         ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
                         
                         break;
@@ -286,10 +299,12 @@ void vTaskFSM(void *pvParameters)
                             "WiFi password incorrect: %s", 
                             esp_err_to_name(err) 
                         );
+
+                        // Sets state to STATE_PROVISIONING
                         ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
                         
                         break;
@@ -300,10 +315,11 @@ void vTaskFSM(void *pvParameters)
                         // Reset the machine to the initialization state for a fresh start
                         ESP_ERROR_CHECK_WITHOUT_ABORT(err);
 
+                        // Sets state to STATE_INIT
                         ret_transition_err = fsm_set_state(STATE_INIT);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(100, ret_transition_err);
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
 
                         break;
@@ -314,7 +330,7 @@ void vTaskFSM(void *pvParameters)
             break;
         }
         // Periodic delay to manage state machine execution frequency
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
     }
 }
 
@@ -336,7 +352,7 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
 // Responsible for the task creation
 void fsm_init(void)
 {   
-    xTaskCreate(vTaskFSM, "FSM", V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(vTaskFSM, V_FSM_TASK_NAME, V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
 }
 
 /*

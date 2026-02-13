@@ -173,8 +173,6 @@ esp_err_t init_provisioning(void)
 
             return err;
         }
-
-        
     }
 
     return ESP_OK;
