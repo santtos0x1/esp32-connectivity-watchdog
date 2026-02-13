@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "net_ping.h"
 #include "sys_fsm.h"
 #include "hal_pins.h"
 #include "patterns.h"
@@ -21,6 +22,8 @@
 
 // Defines the stack buffer for fsm task
 #define V_FSM_STACK_BUFFER  4096
+
+QueueHandle_t ping_queue;
 
 static bool fsm_status = false;
 
@@ -241,7 +244,11 @@ void vTaskFSM(void *pvParameters)
                 break;
             }
             case STATE_OPERATIONAL_ONLINE:
-            {
+            {   // Publish information on mqtt broker
+                ping_queue = xQueueCreate(10, sizeof(report_global));
+
+                initialize_ping(ping_queue);
+
                 break;
             }
             case STATE_OPERATIONAL_OFFLINE:
