@@ -14,7 +14,7 @@
 
 // Defines the stack buffer for diag task
 #ifdef CONFIG_DIAG_STACK_SIZE
-    #define V_DIAG_STACK_BUFFER  CONFIG_DIAG_STACK_SIZE
+    #define V_DIAG_STACK_BUFFER  (uint16_t)CONFIG_DIAG_STACK_SIZE
 #else
     #define V_DIAG_STACK_BUFFER  2048
 #endif

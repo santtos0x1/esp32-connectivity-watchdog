@@ -25,18 +25,24 @@
 
 // Defines the stack buffer for fsm task
 #ifdef CONFIG_FSM_STACK_SIZE
-    #define V_FSM_STACK_BUFFER CONFIG_FSM_STACK_SIZE
+    #define V_FSM_STACK_BUFFER (uint16_t)CONFIG_FSM_STACK_SIZE
 #else
     #define V_FSM_STACK_BUFFER 4096
 #endif
 
-// Bitmask for system init: 0x1D (00011101 binary) representing GPIO, NAL, WiFi, and Event handlers
-#define SYSTEM_READY_BITMASK  0x1D
-// Expected bitmask value: 0xE8 (11101000 binary) when all initialization stages are successfully completed.
-#define INIT_SUCCESS_BITMASK  0xE8
+// Bitmask for system init
+#define INIT_BIT_GPIO      (1 << 0)  // 0x01 (00000001)
+#define INIT_BIT_NAL       (1 << 1)  // 0x02 (00000010)
+#define INIT_BIT_WIFI      (1 << 2)  // 0x04 (00000100)
+
+// Expected bitmask value: when all initialization stages are successfully completed.
+#define INIT_SUCCESS_BITMASK  (INIT_BIT_GPIO | INIT_BIT_NAL | INIT_BIT_WIFI )
 
 // Maximum number of items (slots) the queue can hold. 
 #define PING_QUEUE_ITEM_SIZE  10
+
+// Task priority
+#define V_FSM_TASK_PRIORITY  5
 
 QueueHandle_t ping_queue;
 
@@ -58,8 +64,6 @@ void vTaskFSM(void *pvParameters)
 
     for(;;)
     {
-        uint8_t ini_bit = SYSTEM_READY_BITMASK;
-
         // Prevent watchdog triggers and allow task switching
         vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
 
@@ -72,7 +76,7 @@ void vTaskFSM(void *pvParameters)
             */
             case STATE_INIT:
             {
-                ini_bit = SYSTEM_READY_BITMASK;
+                static uint8_t ini_bit = 0;
                 
                 // Verify if initialization was already performed
                 if(fsm_status == false)
@@ -92,7 +96,8 @@ void vTaskFSM(void *pvParameters)
                     else
                     {
                         ESP_LOGI(fsm_tag, "GPIO config initialized successfully!");
-                        ini_bit <<= 1;
+
+                        ini_bit |= INIT_BIT_GPIO;
                     }
 
                     boot_fb(BOOT_FEEDBACK_LED_PIN);
@@ -115,7 +120,8 @@ void vTaskFSM(void *pvParameters)
                     else
                     {
                         ESP_LOGI(fsm_tag, "NAL initialized successfully!");
-                        ini_bit <<= 1;
+                        
+                        ini_bit |=  INIT_BIT_NAL;
                     }
 
                     // Initializes WiFi connection;
@@ -134,7 +140,8 @@ void vTaskFSM(void *pvParameters)
                     else
                     {
                         ESP_LOGI(fsm_tag, "WiFi initialized successfully!");
-                        ini_bit <<= 1;
+                        
+                        ini_bit |= INIT_BIT_WIFI;
                     }
 
                     // Register an event from event handler
@@ -259,7 +266,6 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_OPERATIONAL_ONLINE:
             {   // Publish information on MQTT broker
-
                 initialize_ping(ping_queue);
 
                 if(xQueueReceive(
@@ -399,7 +405,14 @@ void fsm_init(void)
 {   
     ping_queue = xQueueCreate(PING_QUEUE_ITEM_SIZE, sizeof(ping_result_t));
 
-    xTaskCreate(vTaskFSM, V_FSM_TASK_NAME, V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(
+        vTaskFSM, 
+        V_FSM_TASK_NAME, 
+        V_FSM_STACK_BUFFER,
+        NULL, 
+        V_FSM_TASK_PRIORITY, 
+        NULL
+    );
 }
 
 /*
