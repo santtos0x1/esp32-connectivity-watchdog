@@ -24,19 +24,24 @@
 #include "softap_provisioning.h"
 
 // Defines the stack buffer for fsm task
-#ifndef CONFIG_FSM_STACK_SIZE
+#ifdef CONFIG_FSM_STACK_SIZE
     #define V_FSM_STACK_BUFFER CONFIG_FSM_STACK_SIZE
 #else
-    #define V_FSM_STACK_BUFFER  4096
+    #define V_FSM_STACK_BUFFER 4096
 #endif
 
+// Bitmask for system init: 0x1D (00011101 binary) representing GPIO, NAL, WiFi, and Event handlers
+#define SYSTEM_READY_BITMASK  0x1D
+// Expected bitmask value: 0xE8 (11101000 binary) when all initialization stages are successfully completed.
+#define INIT_SUCCESS_BITMASK  0xE8
+
+// Maximum number of items (slots) the queue can hold. 
+#define PING_QUEUE_ITEM_SIZE  10
 
 QueueHandle_t ping_queue;
 
 static bool fsm_status = false;
-
 static system_state_t current_state = STATE_INIT;
-
 static const char *fsm_tag = "fsm";
 
 // FSM task to run
@@ -53,7 +58,7 @@ void vTaskFSM(void *pvParameters)
 
     for(;;)
     {
-        uint8_t ini_bit = 0x1D;
+        uint8_t ini_bit = SYSTEM_READY_BITMASK;
 
         // Prevent watchdog triggers and allow task switching
         vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
@@ -67,7 +72,7 @@ void vTaskFSM(void *pvParameters)
             */
             case STATE_INIT:
             {
-                ini_bit = 0x1D;
+                ini_bit = SYSTEM_READY_BITMASK;
                 
                 // Verify if initialization was already performed
                 if(fsm_status == false)
@@ -140,7 +145,7 @@ void vTaskFSM(void *pvParameters)
                         NULL
                     ));
 
-                    if(ini_bit == 0xE8)
+                    if(ini_bit == INIT_SUCCESS_BITMASK)
                     {
                         fsm_status = true;
                         ESP_LOGI(
@@ -392,7 +397,7 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
 // Responsible for the task creation
 void fsm_init(void)
 {   
-    ping_queue = xQueueCreate(10, sizeof(ping_result_t));
+    ping_queue = xQueueCreate(PING_QUEUE_ITEM_SIZE, sizeof(ping_result_t));
 
     xTaskCreate(vTaskFSM, V_FSM_TASK_NAME, V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
 }
@@ -443,50 +448,14 @@ const char *state_to_name(system_state_t state)
 {
     switch(state)
     {
-        case 0:
-        {
-            return "STATE_INIT";
-            break;
-        }
-        case 1:
-        {
-            return "STATE_WIFI_CONNECTING";
-            break;
-        }
-        case 2:
-        {
-            return "STATE_PROVISIONING";
-            break;
-        }
-        case 3:
-        {
-            return "STATE_MQTT_CONNECTING";
-            break;
-        }
-        case 4:
-        { 
-            return "STATE_OPERATIONAL_ONLINE";
-            break;
-        }
-        case 5:
-        {
-            return "STATE_OPERATIONAL_OFFLINE";
-            break;
-        }
-        case 6:
-        {
-            return "STATE_SYNCING";
-            break;
-        }
-        case 7:
-        {
-            return "STATE_ERROR";
-            break;
-        }
-        default:
-        {
-            return "State not found";
-            break;
-        }
+        case STATE_INIT:                return "STATE_INIT";
+        case STATE_WIFI_CONNECTING:     return "STATE_WIFI_CONNECTING";
+        case STATE_PROVISIONING:        return "STATE_PROVISIONING";
+        case STATE_MQTT_CONNECTING:     return "STATE_MQTT_CONNECTING";
+        case STATE_OPERATIONAL_ONLINE:  return "STATE_OPERATIONAL_ONLINE";
+        case STATE_OPERATIONAL_OFFLINE: return "STATE_OPERATIONAL_OFFLINE";
+        case STATE_SYNCING:             return "STATE_SYNCING";
+        case STATE_ERROR:               return "STATE_ERROR";
+        default:                        return "STATE_UNKNOWN";
     }
 }

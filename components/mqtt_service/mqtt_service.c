@@ -12,7 +12,7 @@
 
 // Defines the stack buffer for mqtt task
 
-#ifndef CONFIG_MQTT_STACK_SIZE
+#ifdef CONFIG_MQTT_STACK_SIZE
     #define V_MQTT_STACK_BUFFER CONFIG_MQTT_STACK_SIZE
 #else
     #define V_MQTT_STACK_BUFFER 2048

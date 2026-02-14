@@ -13,7 +13,7 @@
 #include "sys_conf.h"
 
 // Defines the stack buffer for diag task
-#ifndef CONFIG_DIAG_STACK_SIZE
+#ifdef CONFIG_DIAG_STACK_SIZE
     #define V_DIAG_STACK_BUFFER  CONFIG_DIAG_STACK_SIZE
 #else
     #define V_DIAG_STACK_BUFFER  2048
