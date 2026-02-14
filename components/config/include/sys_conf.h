@@ -34,4 +34,8 @@
 
 #define HEALTH_CHECK_DELAY_MS   5000
 
+#define QUEUE_RECEIVE_DELAY     4000
+#define PING_COOLDOWN_MS        2500
+#define PING_SECURITY_DELAY     30000
+
 #endif // !SYS_CONF_H

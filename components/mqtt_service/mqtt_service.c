@@ -1,3 +1,5 @@
+#include "sdkconfig.h"
+
 #include <stdio.h>
 
 #include "mqtt_client.h"
@@ -9,7 +11,12 @@
 #include "sys_conf.h"
 
 // Defines the stack buffer for mqtt task
-#define V_MQTT_STACK_BUFFER 2048
+
+#ifndef CONFIG_MQTT_STACK_SIZE
+    #define V_MQTT_STACK_BUFFER CONFIG_MQTT_STACK_SIZE
+#else
+    #define V_MQTT_STACK_BUFFER 2048
+#endif
 
 /**
  * @brief MQTT Consumer Task: Handles incoming traffic.

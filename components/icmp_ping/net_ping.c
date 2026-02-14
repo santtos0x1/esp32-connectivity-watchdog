@@ -112,7 +112,7 @@ void cmd_ping_on_ping_timeout(esp_ping_handle_t hdl, void *args)
     ip_addr_t target_addr;
 
     /* Fetch sequence number to identify which specific packet failed */
-    err_seq = esp_esp_ping_get_profile(
+    err_seq = esp_ping_get_profile(
         hdl, 
         ESP_PING_PROF_SEQNO, 
         &seqno, 

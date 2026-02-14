@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 
 void vTaskDiag(void *pvParameters);
+
 void init_diag(void);
 
 #endif // !SYS_DIAG_H

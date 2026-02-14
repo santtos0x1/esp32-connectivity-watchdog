@@ -1,3 +1,5 @@
+#include "sdkconfig.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -11,7 +13,11 @@
 #include "sys_conf.h"
 
 // Defines the stack buffer for diag task
-#define V_DIAG_STACK_BUFFER  2048
+#ifndef CONFIG_DIAG_STACK_SIZE
+    #define V_DIAG_STACK_BUFFER  CONFIG_DIAG_STACK_SIZE
+#else
+    #define V_DIAG_STACK_BUFFER  2048
+#endif
 
 static const char *diag_tag = "diag";
 

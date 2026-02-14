@@ -1,3 +1,5 @@
+#include "sdkconfig.h"
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,6 +11,7 @@
 #include "wifi_provisioning/wifi_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "net_ping.h"
 #include "sys_fsm.h"
@@ -21,7 +24,12 @@
 #include "softap_provisioning.h"
 
 // Defines the stack buffer for fsm task
-#define V_FSM_STACK_BUFFER  4096
+#ifndef CONFIG_FSM_STACK_SIZE
+    #define V_FSM_STACK_BUFFER CONFIG_FSM_STACK_SIZE
+#else
+    #define V_FSM_STACK_BUFFER  4096
+#endif
+
 
 QueueHandle_t ping_queue;
 
@@ -34,20 +42,18 @@ static const char *fsm_tag = "fsm";
 // FSM task to run
 void vTaskFSM(void *pvParameters)
 {
+    ping_result_t p_report;   
+
     // Initializes errors handlers
     static esp_err_t err;
     static esp_err_t ret_transition_err;
 
-    ping_result_t report_global;
-
     // Uses default initial configuration
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT(); 
 
-    ping_queue = xQueueCreate(10, sizeof(report_global));
-
     for(;;)
     {
-        uint8_t ini_bit = 0x01;
+        uint8_t ini_bit = 0x1D;
 
         // Prevent watchdog triggers and allow task switching
         vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
@@ -61,7 +67,7 @@ void vTaskFSM(void *pvParameters)
             */
             case STATE_INIT:
             {
-                ini_bit = 0x01;
+                ini_bit = 0x1D;
                 
                 // Verify if initialization was already performed
                 if(fsm_status == false)
@@ -84,7 +90,7 @@ void vTaskFSM(void *pvParameters)
                         ini_bit <<= 1;
                     }
 
-                    boot_fb(FEEDBACK_LED_PIN);
+                    boot_fb(BOOT_FEEDBACK_LED_PIN);
 
                     vTaskDelay(pdMS_TO_TICKS(DELAY_UI_REFRESH_MS));
 
@@ -134,7 +140,7 @@ void vTaskFSM(void *pvParameters)
                         NULL
                     ));
 
-                    if(ini_bit == 0x08)
+                    if(ini_bit == 0xE8)
                     {
                         fsm_status = true;
                         ESP_LOGI(
@@ -142,7 +148,6 @@ void vTaskFSM(void *pvParameters)
                             "Initialization complete. Mask: 0x%02X | Status: %s",
                             ini_bit, fsm_status ? "READY" : "FAILED"
                         );
-                        //success_fb(FEEDBACK_LED_PIN);
                         
                         // Attempt to transition to the connection state
                         ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
@@ -161,7 +166,6 @@ void vTaskFSM(void *pvParameters)
                     else
                     {
                         fsm_status = false;
-                        fail_fb(FEEDBACK_LED_PIN);
                     }
                 }
 
@@ -243,16 +247,39 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_MQTT_CONNECTING:
             {
+                vTaskDelay(pdMS_TO_TICKS(PING_COOLDOWN_MS));
+
+                err = fsm_set_state(STATE_OPERATIONAL_ONLINE);
                 break;
             }
             case STATE_OPERATIONAL_ONLINE:
-            {   // Publish information on mqtt broker
+            {   // Publish information on MQTT broker
 
                 initialize_ping(ping_queue);
 
-                if(xQueueReceive(ping_queue, &report_global, portMAX_DELAY) == pdPASS)
+                if(xQueueReceive(
+                    ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)) == pdPASS
+                )
                 {
-                    // Receive values from queue
+                    if(p_report.received > 0)
+                    {
+                        ESP_LOGI(fsm_tag, "Network ok, waiting interval...");
+
+                        vTaskDelay(PING_SECURITY_DELAY);
+                    }
+                    else
+                    {
+                        ESP_LOGE(fsm_tag, "Ping failed! Trying to reconnect");
+                        err = fsm_set_state(STATE_WIFI_CONNECTING);
+                        if(err != ESP_OK)
+                        {
+                            ret_transition_err = fsm_set_state(STATE_ERROR);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                            } 
+                        }
+                    }
                 }
 
                 break;
@@ -365,6 +392,8 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
 // Responsible for the task creation
 void fsm_init(void)
 {   
+    ping_queue = xQueueCreate(10, sizeof(ping_result_t));
+
     xTaskCreate(vTaskFSM, V_FSM_TASK_NAME, V_FSM_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
 }
 
