@@ -5,6 +5,8 @@
 
 #include "hal_map.h"
 
+static const char *gpio_tag = "gpio";
+
 // Configuration set
 gpio_config_t builtin_led = {
     .pin_bit_mask = (1ULL << BOOT_FEEDBACK_LED_PIN),
@@ -25,7 +27,11 @@ esp_err_t sys_conf_gpio(void)
     err = gpio_config(&builtin_led);
     if(err != ESP_OK)
     {
-        ESP_LOGE("", "Failed to start built-in led GPIO configuration: %s", esp_err_to_name(err));
+        ESP_LOGE(
+            gpio_tag, 
+            "Failed to start built-in led GPIO configuration: %s", 
+            esp_err_to_name(err)
+        );
             
         return err;
     }

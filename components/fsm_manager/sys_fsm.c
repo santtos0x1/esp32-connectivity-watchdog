@@ -134,15 +134,16 @@ void vTaskFSM(void *pvParameters)
                         {
                             panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
-
                         break;
                     }
                     else
                     {
                         ESP_LOGI(fsm_tag, "WiFi initialized successfully!");
-                        
+
                         ini_bit |= INIT_BIT_WIFI;
                     }
+                    
+                
 
                     // Register an event from event handler
                     ESP_ERROR_CHECK(esp_event_handler_register(
@@ -151,6 +152,20 @@ void vTaskFSM(void *pvParameters)
                         provisioning_event_handler,
                         NULL
                     ));
+
+                    esp_event_handler_register(
+                        IP_EVENT, 
+                        IP_EVENT_STA_GOT_IP, 
+                        wifi_status_event_handler, 
+                        NULL
+                    );
+
+                    esp_event_handler_register(
+                        WIFI_EVENT, 
+                        WIFI_EVENT_STA_DISCONNECTED, 
+                        wifi_status_event_handler, 
+                        NULL
+                    );
 
                     if(ini_bit == INIT_SUCCESS_BITMASK)
                     {
@@ -184,71 +199,84 @@ void vTaskFSM(void *pvParameters)
                 break;
             }
             case STATE_WIFI_CONNECTING:
-            {                
-                // Execute WiFi connection logic using stored parameters
-                err = init_wifi_connection();
-                if(err == ESP_OK)
+            {
+                static bool connection_triggered = false;
+
+                if(!connection_triggered)
                 {
-                    // Transition to provisioning state once connected
-                    ret_transition_err = fsm_set_state(STATE_MQTT_CONNECTING);
-                    if(ret_transition_err != ESP_OK)
+                    connection_triggered = true;
+                    // Execute WiFi connection logic using stored parameters
+                    err = init_wifi_connection();
+                    if(err == ESP_OK)
                     {
-                        // Set state to STATE_ERROR
-                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        /*
+                        // Transition to provisioning state once connected
+                        ret_transition_err = fsm_set_state(STATE_MQTT_CONNECTING);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
-                        }
-                    
-                        break;
-                    }
+                            // Set state to STATE_ERROR
+                            ret_transition_err = fsm_set_state(STATE_ERROR);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                            }
 
-                    break;   
-                } 
-                else
-                {
-                    // Starts mDNS configuration
-                    err = init_mdns();
-                    if(err != ESP_OK)
-                    {
-                        ESP_LOGW(
-                            fsm_tag, 
-                            "mDNS failed to start (%s). Discovery by name will be unavailable.", 
-                            esp_err_to_name(err) 
-                        );
-                    }
+                            break;
+                        }
+                        */
+
+                        break;   
+                    } 
                     else
                     {
-                        ESP_LOGI(fsm_tag, "mDNS initialized successfully.");
-                    }
+                        // Starts mDNS configuration
+                        err = init_mdns();
+                        if(err != ESP_OK)
+                        {
+                            ESP_LOGW(
+                                fsm_tag, 
+                                "mDNS failed to start (%s). Discovery by name will be unavailable.", 
+                                esp_err_to_name(err) 
+                            );
+                        }
+                        else
+                        {
+                            ESP_LOGI(fsm_tag, "mDNS initialized successfully.");
+                        }
 
-                    // Start the provisioning service via SoftAP
-                    err = init_provisioning();
-                    if(err != ESP_OK)
-                    {
-                        // Sets state to STATE_ERROR
-                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        // Start the provisioning service via SoftAP
+                        err = init_provisioning();
+                        if(err != ESP_OK)
+                        {
+                            // Sets state to STATE_ERROR
+                            ret_transition_err = fsm_set_state(STATE_ERROR);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                            }
+                        
+                            break;
+                        }
+
+                        // Set state to STATE_PROVISIONING
+                        ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                         if(ret_transition_err != ESP_OK)
                         {
-                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                            ret_transition_err = fsm_set_state(STATE_ERROR);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                            }
+                        
+                            break;
                         }
-                    
-                        break;
                     }
-
-                    // Set state to STATE_PROVISIONING
-                    ret_transition_err = fsm_set_state(STATE_PROVISIONING);
-                    if(ret_transition_err != ESP_OK)
-                    {
-                        ret_transition_err = fsm_set_state(STATE_ERROR);
-                        if(ret_transition_err != ESP_OK)
-                        {
-                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
-                        }
                     
-                        break;
+                    if (current_state != STATE_WIFI_CONNECTING) {
+                        connection_triggered = false;
                     }
                 }
+                
 
                 break;
             }
@@ -272,6 +300,14 @@ void vTaskFSM(void *pvParameters)
                     ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)) == pdPASS
                 )
                 {
+                    ESP_LOGI(
+                        fsm_tag, 
+                        "Ping Report -> Received: %d | Transmitted: %d | Time: %dms", 
+                        p_report.received, 
+                        p_report.transmitted, 
+                        p_report.total_time_ms
+                    );
+                    
                     if(p_report.received > 0)
                     {
                         ESP_LOGI(fsm_tag, "Network ok, waiting interval...");

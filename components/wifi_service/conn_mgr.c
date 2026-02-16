@@ -9,6 +9,7 @@
 
 #include "nv_params.h"
 #include "conn_mgr.h"
+#include "sys_fsm.h"
 
 // Debug tags
 static const char *wifi_tag = "wifi";
@@ -20,6 +21,22 @@ esp_err_t ret;
 
 // Initializes the ESP-WIFI config
 wifi_config_t wifi_config = {0};
+
+void wifi_status_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    if(event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
+    {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t*)event_data;
+        ESP_LOGI(wifi_tag, "Received IP: " IPSTR, IP2STR(&event->ip_info.ip));
+
+        fsm_set_state(STATE_MQTT_CONNECTING);
+    }
+    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+    {
+        ESP_LOGE(wifi_tag, "WiFi Disconnected. Trying to reconnect!");
+        esp_wifi_connect();
+    }
+}
 
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 esp_err_t init_network_abstraction_layer(void)

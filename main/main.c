@@ -17,8 +17,7 @@ void app_main(void)
     // Shows ESP32 hardware information
     esp_show_info();
 
-    // Starts the FSM logic
+    // Tasks setup
     fsm_init();
-
     init_diag();
 }

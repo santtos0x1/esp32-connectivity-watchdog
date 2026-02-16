@@ -10,7 +10,7 @@
 
 /* Using a direct IP to bypass DNS resolution issues during network failure */
 #define PING_GLOBAL_IP_SERVER "8.8.8.8"
-#define MAX_SEND_ICMP_PACKETS 3
+#define MAX_SEND_ICMP_PACKETS 5
 
 static const char *ping_tag = "ping";
 
@@ -24,6 +24,7 @@ void cmd_ping_on_ping_success(esp_ping_handle_t hdl, void *args)
     uint8_t ttl;
     uint16_t seqno;
     uint32_t elapsed_time, recv_len;
+
     ip_addr_t target_addr;
 
     /* Extracting specific packet information for real-time monitoring */
@@ -92,7 +93,7 @@ void cmd_ping_on_ping_success(esp_ping_handle_t hdl, void *args)
     err_size = esp_ping_get_profile(
         hdl, 
         ESP_PING_PROF_SIZE, 
-        &recv_len, 
+        &recv_len,
         sizeof(recv_len)
     );
     if (err_size != ESP_OK) {
@@ -163,6 +164,10 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
         ESP_LOGE(ping_tag, "Failed to get transmitted count");
         report.transmitted = 0;
     }
+    else
+    {
+        ESP_LOGI(ping_tag, "Transmitted count: OK");
+    }
 
     // Get total number of ICMP replies received
     err_rep = esp_ping_get_profile(
@@ -175,6 +180,10 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
         ESP_LOGE(ping_tag, "Failed to get received count");
         report.received = 0;
     }
+    else
+    {
+        ESP_LOGI(ping_tag, "Received count: OK");
+    }
 
     // Get total elapsed time for the entire ping session
     err_dur = esp_ping_get_profile(
@@ -186,6 +195,10 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
     if (err_dur != ESP_OK) {
         ESP_LOGE(ping_tag, "Failed to get session duration");
         report.total_time_ms = 0;
+    }
+    else
+    {
+        ESP_LOGI(ping_tag, "Session duration: OK");
     }
 
     /* Send the consolidated report to the FSM/Watchdog via Queue */
@@ -228,12 +241,20 @@ esp_err_t initialize_ping(QueueHandle_t result_q)
         ESP_LOGE(ping_tag, "Failed to start a new ping session: %s", esp_err_to_name(err));
         return err;
     }
+    else
+    {
+        ESP_LOGI(ping_tag, "Started a new session successfully!");
+    }
 
     err = esp_ping_start(hdl);
     if(err != ESP_OK)
     {
         ESP_LOGE(ping_tag, "Failed to start ping: %s", esp_err_to_name(err));
         return err;
+    }
+    else
+    {
+        ESP_LOGI(ping_tag, "Ping started successfully!");
     }
 
     return ESP_OK;
