@@ -54,6 +54,7 @@
 #include "hal_map.h"
 #include "sys_conf.h"
 #include "softap_provisioning.h"
+#include "mqtt_service.h"
 
 // Defines the stack buffer for fsm task
 #ifdef CONFIG_FSM_STACK_SIZE
@@ -348,17 +349,28 @@ void vTaskFSM(void *pvParameters)
                     ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)) == pdPASS
                 )
                 {
-                    //! Temporary...
-                    ESP_LOGI(
-                        fsm_tag, 
-                        "Ping Report -> Received: %d | Transmitted: %d | Time: %dms", 
-                        p_report.received, 
-                        p_report.transmitted, 
-                        p_report.total_time_ms
-                    );
+                    mqtt_message_t msg_to_send;
+
+                    snprintf(msg_to_send.topic, sizeof(msg_to_send.topic), "v1/device/ping");
                     
+                    snprintf(
+                        msg_to_send.payload, 
+                        sizeof(msg_to_send.payload), 
+                        "{\"rec\": %d, \"tx\": %d, \"time\": %d}", 
+                        (int)p_report.received, (int)p_report.transmitted, (int)p_report.total_time_ms
+                    );  
+
+                    msg_to_send.qos = 1;
+                    msg_to_send.retain = 0;
+
+                    if(xQueueSend(mqtt_queue, &msg_to_send, 0) != pdPASS) {
+                        ESP_LOGW(fsm_tag, "MQTT queue full!");
+                    }
+
                     if(p_report.received > 0)
                     {
+                        xQueueSend(mqtt_queue, &p_report, DELAY_HW_STABILIZE_MS);
+
                         // Connectivity confirmed, wait for the next verification interval
                         ESP_LOGI(fsm_tag, "Network ok, waiting interval...");
 

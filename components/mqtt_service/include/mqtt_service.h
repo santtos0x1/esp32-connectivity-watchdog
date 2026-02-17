@@ -1,8 +1,15 @@
 #ifndef MQTT_SERVICE_H
 #define MQTT_SERVICE_H
 
-void vTaskMQTT(void *pvParameters);
+typedef struct {
+    char topic[64];
+    char payload[128];
+    int qos;
+    int retain;
+} mqtt_message_t;
+
+extern QueueHandle_t mqtt_queue;
+
 void mqtt_init(void);
-void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data);
 
 #endif // !MQTT_SERVICE_H
