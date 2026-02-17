@@ -1,3 +1,35 @@
+/*
+    * FSM Operational Logic:
+    * Deterministic Transitions: Uses a bitmask-based navigation (bitwise_nav) to validate
+    * if a state change is allowed, preventing illegal or logic-breaking jumps.
+    * 
+    * State Encapsulation: Each state is self-contained, managing its own entry logic
+    * through internal flags to ensure re-entrancy safety.
+    * 
+    * Error Recovery: Implements a centralized error handling state (STATE_ERROR) that
+    * diagnoses failure types and attempts autonomous recovery or system restart.
+    * 
+    * Task-Based Execution: Runs as a dedicated FreeRTOS task with controlled frequency
+    * to manage CPU load and hardware stabilization.
+    * 
+    * NS Monitor - 02/2026
+
+    * State Transition Matrix (Bitmask-based):
+    * Each bit represents an allowed transition where bit 0 is STATE_INIT, 
+    * bit 1 is STATE_WIFI_CONNECTING, and so on.
+    * * [FROM STATE]         -> [ALLOWED TO STATES]
+    * ----------------------------------------------------------------------------
+    * STATE_INIT             -> WIFI_CONNECTING, PROVISIONING, ERROR
+    * STATE_WIFI_CONNECTING  -> INIT, PROVISIONING, MQTT_CONNECTING, ERROR
+    * STATE_PROVISIONING     -> INIT, ERROR, MQTT_CONNECTING
+    * STATE_MQTT_CONNECTING  -> INIT, WIFI_CONNECTING, OPERATIONAL_ONLINE, SYNCING, ERROR
+    * STATE_OPERATIONAL_ON   -> INIT, WIFI_CONNECTING, OPERATIONAL_OFFLINE, SYNCING, ERROR
+    * STATE_OPERATIONAL_OFF  -> INIT, WIFI_CONNECTING, OPERATIONAL_ONLINE, SYNCING, ERROR
+    * STATE_SYNCING          -> INIT, WIFI_CONNECTING, MQTT_CONNECTING, ERROR
+    * STATE_ERROR            -> ANY STATE (Except it self)
+    * ----------------------------------------------------------------------------
+*/
+
 #include "sdkconfig.h"
 
 #include <stdio.h>
@@ -25,7 +57,7 @@
 
 // Defines the stack buffer for fsm task
 #ifdef CONFIG_FSM_STACK_SIZE
-    #define V_FSM_STACK_BUFFER (uint16_t)CONFIG_FSM_STACK_SIZE
+    #define V_FSM_STACK_BUFFER (uint16_t)atoi(CONFIG_FSM_STACK_SIZE)
 #else
     #define V_FSM_STACK_BUFFER 4096
 #endif
@@ -36,7 +68,7 @@
 #define INIT_BIT_WIFI      (1 << 2)  // 0x04 (00000100)
 
 // Expected bitmask value: when all initialization stages are successfully completed.
-#define INIT_SUCCESS_BITMASK  (INIT_BIT_GPIO | INIT_BIT_NAL | INIT_BIT_WIFI )
+#define INIT_SUCCESS_BITMASK  (INIT_BIT_GPIO | INIT_BIT_NAL | INIT_BIT_WIFI)
 
 // Maximum number of items (slots) the queue can hold. 
 #define PING_QUEUE_ITEM_SIZE  10
@@ -47,6 +79,9 @@
 QueueHandle_t ping_queue;
 
 static bool fsm_status = false;
+static bool prov_started = false;
+static bool connection_triggered = false;
+
 static system_state_t current_state = STATE_INIT;
 static const char *fsm_tag = "NS-FSM";
 
@@ -76,7 +111,7 @@ void vTaskFSM(void *pvParameters)
             */
             case STATE_INIT:
             {
-                static uint8_t ini_bit = 0;
+                static uint8_t init_bit = 0;
                 
                 // Verify if initialization was already performed
                 if(fsm_status == false)
@@ -97,7 +132,7 @@ void vTaskFSM(void *pvParameters)
                     {
                         ESP_LOGI(fsm_tag, "GPIO config initialized successfully!");
 
-                        ini_bit |= INIT_BIT_GPIO;
+                        init_bit |= INIT_BIT_GPIO;
                     }
 
                     boot_fb(BOOT_FEEDBACK_LED_PIN);
@@ -121,7 +156,7 @@ void vTaskFSM(void *pvParameters)
                     {
                         ESP_LOGI(fsm_tag, "NAL initialized successfully!");
                         
-                        ini_bit |=  INIT_BIT_NAL;
+                        init_bit |=  INIT_BIT_NAL;
                     }
 
                     // Initializes WiFi connection;
@@ -140,7 +175,7 @@ void vTaskFSM(void *pvParameters)
                     {
                         ESP_LOGI(fsm_tag, "WiFi initialized successfully!");
 
-                        ini_bit |= INIT_BIT_WIFI;
+                        init_bit |= INIT_BIT_WIFI;
                     }
 
                     // Register an event from event handler
@@ -167,20 +202,19 @@ void vTaskFSM(void *pvParameters)
                         NULL
                     );
 
-                    if(ini_bit == INIT_SUCCESS_BITMASK)
+                    if(init_bit == INIT_SUCCESS_BITMASK)
                     {
                         fsm_status = true;
                         ESP_LOGI(
                             fsm_tag,
-                            "Initialization complete. Mask: 0x%02X | Status: %s",
-                            ini_bit, fsm_status ? "READY" : "FAILED"
+                            "Initialization complete. Mask: 0x%02X | Full mask: 0x%02x |Status: %s",
+                            init_bit, INIT_SUCCESS_BITMASK, fsm_status ? "READY" : "FAILED"
                         );
                         
                         // Attempt to transition to the connection state
                         ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
                         if(ret_transition_err != ESP_OK)
                         {
-                            // Sets state to STATE_ERROR
                             ret_transition_err = fsm_set_state(STATE_ERROR);
                             if(ret_transition_err != ESP_OK)
                             {
@@ -200,10 +234,8 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_WIFI_CONNECTING:
             {
-                static bool connection_triggered = false;
-
                 // Reset connection flag if the state machine re-enters this state
-                if (current_state != STATE_WIFI_CONNECTING) {
+                if (fsm_get_state() != STATE_WIFI_CONNECTING) {
                    connection_triggered = false;
                 }
 
@@ -223,8 +255,17 @@ void vTaskFSM(void *pvParameters)
                         case ESP_ERR_NOT_FOUND:
                         {
                             // If fail to start connection using nvs credentials
-                            fsm_set_state(STATE_PROVISIONING);
-                            
+                            ret_transition_err = fsm_set_state(STATE_PROVISIONING);
+                            if(ret_transition_err != ESP_OK)
+                            {
+                                ret_transition_err = fsm_set_state(STATE_ERROR);
+                                if(ret_transition_err != ESP_OK)
+                                {
+                                    panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                                }
+                                
+                            }
+
                             break;
                         }
                         default:
@@ -240,10 +281,8 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_PROVISIONING:
             {
-                static bool prov_started = false;
-
                 // Reset provisioning flag if the state machine re-enters this state
-                if (current_state != STATE_PROVISIONING) {
+                if (fsm_get_state() != STATE_PROVISIONING) {
                     prov_started = false;
                 }
 
@@ -268,7 +307,6 @@ void vTaskFSM(void *pvParameters)
                     err = init_provisioning();
                     if(err != ESP_OK)
                     {
-                        // Sets state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
@@ -359,11 +397,10 @@ void vTaskFSM(void *pvParameters)
             case STATE_ERROR:
             {
                 // Handle cases where an illegal state transition was attempted
-                if(ret_transition_err == ESP_FAIL)
+                if(ret_transition_err != ESP_FAIL)
                 {
-                    ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+                    ESP_LOGE(fsm_tag,"ERROR: %s", esp_err_to_name(err));
                     
-                    // Sets state to STATE_INIT
                     ret_transition_err = fsm_set_state(STATE_INIT);
                     if(ret_transition_err != ESP_OK)
                     {
@@ -381,12 +418,23 @@ void vTaskFSM(void *pvParameters)
                         panic_dev_restart(LOW_DELAY_TICK_MS, err);
                     }
                     case ESP_ERR_WIFI_NOT_CONNECT:
+                    {
+                        // Log the error and fall back to provisioning mode
+                        ESP_LOGE(fsm_tag, "WiFi could not connect: %s", esp_err_to_name(err));
+
+                        ret_transition_err = fsm_set_state(STATE_PROVISIONING);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
+                        
+                        break;
+                    }
                     case ESP_ERR_TIMEOUT:
                     {
                         // Log the error and fall back to provisioning mode
-                        ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+                        ESP_LOGE(fsm_tag, "Connection timeout: %s", esp_err_to_name(err));
 
-                        // Sets state to STATE_PROVISIONING
                         ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                         if(ret_transition_err != ESP_OK)
                         {
@@ -404,7 +452,6 @@ void vTaskFSM(void *pvParameters)
                             esp_err_to_name(err) 
                         );
 
-                        // Sets state to STATE_PROVISIONING
                         ret_transition_err = fsm_set_state(STATE_PROVISIONING);
                         if(ret_transition_err != ESP_OK)
                         {
@@ -414,19 +461,27 @@ void vTaskFSM(void *pvParameters)
                         break;
                     }
                     case ESP_ERR_NOT_FOUND:
-                    default:
                     {
                         // Reset the machine to the initialization state for a fresh start
-                        ESP_LOGE(fsm_tag, "ERROR: %s", esp_err_to_name(err));
+                        ESP_LOGE(fsm_tag, "Credentials not found: %s", esp_err_to_name(err));
 
-                        // Sets state to STATE_INIT
-                        ret_transition_err = fsm_set_state(STATE_INIT);
+                        ret_transition_err = fsm_set_state(STATE_WIFI_CONNECTING);
                         if(ret_transition_err != ESP_OK)
                         {
                             panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
 
                         break;
+                    }
+                    default:
+                    {
+                        ESP_LOGE(fsm_tag, "ERROR: %s", esp_err_to_name(err));
+                        
+                        ret_transition_err = fsm_set_state(STATE_INIT);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
                     }
                 }
             }

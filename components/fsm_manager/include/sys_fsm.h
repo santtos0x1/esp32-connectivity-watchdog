@@ -26,7 +26,7 @@ static const uint8_t state_bitmask[8] = {
     0b11100011, // STATE_OPERATIONAL_ONLINE
     0b11000111, // STATE_OPERATIONAL_OFFLINE
     0b10110011, // STATE_SYNCING
-    0b00000001  // STATE_ERROR
+    0b01111111  // STATE_ERROR
 };
 
 esp_err_t fsm_set_state(system_state_t new_state);
