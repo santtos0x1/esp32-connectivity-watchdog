@@ -11,9 +11,13 @@
 #include "conn_mgr.h"
 #include "sys_fsm.h"
 
+#define MAXIMUM_RETRY  3
+
 // Debug tags
 static const char *wifi_tag = "wifi";
 static const char *nal_tag  = "nal";
+
+static int s_retry_num = 0;
 
 // Creates error handlers 
 esp_err_t err;
@@ -22,27 +26,42 @@ esp_err_t ret;
 // Initializes the ESP-WIFI config
 wifi_config_t wifi_config = {0};
 
-void wifi_status_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+void wifi_status_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if(event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t*)event_data;
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(wifi_tag, "Received IP: " IPSTR, IP2STR(&event->ip_info.ip));
 
+        s_retry_num = 0;
         fsm_set_state(STATE_MQTT_CONNECTING);
     }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+    else if(event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        ESP_LOGE(wifi_tag, "WiFi Disconnected. Trying to reconnect!");
-        esp_wifi_connect();
+        if(fsm_get_state() == STATE_PROVISIONING)
+        {
+            ESP_LOGW(wifi_tag, "Still in provisioning mode, ignoring disconnect event.");
+        }
+        else
+        {
+            if(s_retry_num < MAXIMUM_RETRY)
+            {
+                esp_wifi_connect();
+                s_retry_num++;
+                ESP_LOGW(wifi_tag, "Retry to connect to the AP (%d/%d)", s_retry_num, MAXIMUM_RETRY);
+            }
+            else
+            {
+                ESP_LOGE(wifi_tag, "Connection failed. Starting Provisioning.");
+                fsm_set_state(STATE_PROVISIONING);
+            }
+        }
     }
 }
 
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 esp_err_t init_network_abstraction_layer(void)
 {
-    wifi_prov_mgr_deinit();
-
     ret = esp_netif_init();
     if(ret != ESP_OK) 
     {
@@ -53,6 +72,7 @@ esp_err_t init_network_abstraction_layer(void)
     // Start AP for provisioning
     esp_netif_create_default_wifi_ap();
 
+    // Start STA
     esp_netif_create_default_wifi_sta();
 
     return ESP_OK;
@@ -85,12 +105,19 @@ esp_err_t init_wifi_connection(void)
         if(err != ESP_OK)
         {
             ESP_LOGE(wifi_tag, "Failed to set ps mode: %s", esp_err_to_name(err));
+
             return err;
         }
-    
-        ESP_LOGI(wifi_tag, "Connecting to saved SSID: %s", wifi_config.sta.ssid);
 
         err = esp_wifi_connect();
+        if(err != ESP_OK)
+        {
+            ESP_LOGE(wifi_tag, "Failed to connect to saved WiFi");
+
+            return err;
+        }
+
+        return ESP_OK;
     }
     else
     {
@@ -98,6 +125,4 @@ esp_err_t init_wifi_connection(void)
         
         return ESP_ERR_NOT_FOUND;
     }
-
-    return ESP_OK;
 }

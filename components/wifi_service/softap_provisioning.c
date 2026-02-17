@@ -121,58 +121,46 @@ esp_err_t init_provisioning(void)
 
     if(provisioned) {
         ESP_LOGI(prov_tag, "Device already provisioned. Skipping manager init.");
-        return ESP_ERR_INVALID_STATE;
+        
+        err = wifi_prov_mgr_reset_provisioning();
+        if(err != ESP_OK)
+        {
+            ESP_LOGE(prov_tag, "Failed to reset provisioning: %s", esp_err_to_name(err));
+
+            return err;
+        }
     }
     
-    if(!provisioned)
+    
+    err = wifi_prov_mgr_init(mgr_conf);
+    if(err != ESP_OK)
     {
-        err = wifi_prov_mgr_init(mgr_conf);
-        if(err != ESP_OK)
-        {
-            ESP_LOGE(
-                prov_tag, 
-                "Failed to start provisioning manager configuration: %s", 
-                esp_err_to_name(err) 
-            );
-
-            return err;
-        }
-
-        /*
-        err = wifi_prov_mgr_endpoint_create("custom-data");
-        if(err != ESP_OK)
-        {
-            ESP_LOGE(prov_tag, "Failed to create 'custom-data' endpoint: %s", esp_err_to_name(err));
-            return err;
-        }
-        else 
-        {
-            err = wifi_prov_mgr_endpoint_register("custom-data", root_callback, NULL);
-            if(err != ESP_OK)
-            {
-                ESP_LOGE(prov_tag, "Failed to register 'custom-data' endpoint");
-                return err;
-            }
-        } 
-        */
-
-        // Start provisioning with Security 1 (requires PoP)
-        err = wifi_prov_mgr_start_provisioning(
-            WIFI_PROV_SECURITY_1, 
-            CONFIG_WIFI_AP_PROV_POP, 
-            CONFIG_WIFI_AP_PROV_SSID,
-            NULL
+        ESP_LOGE(
+            prov_tag, 
+            "Failed to start provisioning manager configuration: %s", 
+            esp_err_to_name(err) 
         );
-        if(err != ESP_OK)
-        {
-            ESP_LOGE( 
-                prov_tag, 
-                "Failed to start provisioning manager: %s", 
-                esp_err_to_name(err) 
-            );
+        
+        return err;
+    }
 
-            return err;
-        }
+    // Start provisioning with Security 1 (requires PoP)
+    err = wifi_prov_mgr_start_provisioning(
+        WIFI_PROV_SECURITY_1, 
+        CONFIG_WIFI_AP_PROV_POP, 
+        CONFIG_WIFI_AP_PROV_SSID,
+        NULL
+    );
+    
+    if(err != ESP_OK)
+    {
+        ESP_LOGE( 
+            prov_tag, 
+            "Failed to start provisioning manager: %s", 
+            esp_err_to_name(err) 
+        );
+    
+        return err;
     }
 
     return ESP_OK;

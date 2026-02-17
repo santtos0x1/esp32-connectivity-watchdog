@@ -71,7 +71,7 @@ void vTaskFSM(void *pvParameters)
         switch(current_state)
         {
             /*
-                * @brief Responsible for system-wide hardware and software initialization,
+                * Responsible for system-wide hardware and software initialization,
                 * including GPIO mapping, NVS, and wifi stack configuration.
             */
             case STATE_INIT:
@@ -142,8 +142,6 @@ void vTaskFSM(void *pvParameters)
 
                         ini_bit |= INIT_BIT_WIFI;
                     }
-                    
-                
 
                     // Register an event from event handler
                     ESP_ERROR_CHECK(esp_event_handler_register(
@@ -153,6 +151,7 @@ void vTaskFSM(void *pvParameters)
                         NULL
                     ));
 
+                    // Registers the event handler for IP acquisition
                     esp_event_handler_register(
                         IP_EVENT, 
                         IP_EVENT_STA_GOT_IP, 
@@ -160,6 +159,7 @@ void vTaskFSM(void *pvParameters)
                         NULL
                     );
 
+                    // Registers the event handler for WiFi disconnection
                     esp_event_handler_register(
                         WIFI_EVENT, 
                         WIFI_EVENT_STA_DISCONNECTED, 
@@ -202,104 +202,116 @@ void vTaskFSM(void *pvParameters)
             {
                 static bool connection_triggered = false;
 
+                // Reset connection flag if the state machine re-enters this state
+                if (current_state != STATE_WIFI_CONNECTING) {
+                   connection_triggered = false;
+                }
+
                 if(!connection_triggered)
                 {
-                    connection_triggered = true;
                     // Execute WiFi connection logic using stored parameters
                     err = init_wifi_connection();
-                    if(err == ESP_OK)
+                    switch(err)
                     {
-                        /*
-                        // Transition to provisioning state once connected
-                        ret_transition_err = fsm_set_state(STATE_MQTT_CONNECTING);
-                        if(ret_transition_err != ESP_OK)
+                        case ESP_OK:
                         {
-                            // Set state to STATE_ERROR
-                            ret_transition_err = fsm_set_state(STATE_ERROR);
-                            if(ret_transition_err != ESP_OK)
-                            {
-                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
-                            }
+                            // Wait for the event handler to confirm connection
+                            connection_triggered = true;
 
                             break;
                         }
-                        */
-
-                        break;   
-                    } 
-                    else
-                    {
-                        // Starts mDNS configuration
-                        err = init_mdns();
-                        if(err != ESP_OK)
+                        case ESP_ERR_NOT_FOUND:
                         {
-                            ESP_LOGW(
-                                fsm_tag, 
-                                "mDNS failed to start (%s). Discovery by name will be unavailable.", 
-                                esp_err_to_name(err) 
-                            );
-                        }
-                        else
-                        {
-                            ESP_LOGI(fsm_tag, "mDNS initialized successfully.");
-                        }
-
-                        // Start the provisioning service via SoftAP
-                        err = init_provisioning();
-                        if(err != ESP_OK)
-                        {
-                            // Sets state to STATE_ERROR
-                            ret_transition_err = fsm_set_state(STATE_ERROR);
-                            if(ret_transition_err != ESP_OK)
-                            {
-                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
-                            }
-                        
+                            // If fail to start connection using nvs credentials
+                            fsm_set_state(STATE_PROVISIONING);
+                            
                             break;
                         }
-
-                        // Set state to STATE_PROVISIONING
-                        ret_transition_err = fsm_set_state(STATE_PROVISIONING);
-                        if(ret_transition_err != ESP_OK)
+                        default:
                         {
-                            ret_transition_err = fsm_set_state(STATE_ERROR);
-                            if(ret_transition_err != ESP_OK)
-                            {
-                                panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
-                            }
-                        
+                            fsm_set_state(STATE_ERROR);
+                            
                             break;
                         }
-                    }
-                    
-                    if (current_state != STATE_WIFI_CONNECTING) {
-                        connection_triggered = false;
                     }
                 }
-                
-
+                    
                 break;
             }
             case STATE_PROVISIONING:
             {
+                static bool prov_started = false;
+
+                // Reset provisioning flag if the state machine re-enters this state
+                if (current_state != STATE_PROVISIONING) {
+                    prov_started = false;
+                }
+
+                if(!prov_started)
+                {
+                    // Starts mDNS configuration
+                    err = init_mdns();
+                    if(err != ESP_OK)
+                    {
+                        ESP_LOGW(
+                            fsm_tag, 
+                            "mDNS failed to start (%s). Discovery by name will be unavailable.", 
+                            esp_err_to_name(err) 
+                        );
+                    }
+                    else
+                    {
+                        ESP_LOGI(fsm_tag, "mDNS initialized successfully.");
+                    }
+
+                    // Start the provisioning service via SoftAP
+                    err = init_provisioning();
+                    if(err != ESP_OK)
+                    {
+                        // Sets state to STATE_ERROR
+                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
+                    
+                        break;
+                    }
+
+                   prov_started = true;
+                }
+
+                // Small delay to allow provisioning tasks to process
                 vTaskDelay(pdMS_TO_TICKS(LOW_DELAY_TICK_MS));
+
                 break;
             }
             case STATE_MQTT_CONNECTING:
             {
+                // Delay to ensure network stability before transitioning
                 vTaskDelay(pdMS_TO_TICKS(PING_COOLDOWN_MS));
-
                 err = fsm_set_state(STATE_OPERATIONAL_ONLINE);
+
                 break;
             }
             case STATE_OPERATIONAL_ONLINE:
             {   // Publish information on MQTT broker
-                initialize_ping(ping_queue);
+                err = initialize_ping(ping_queue);
+                if(err != ESP_OK)
+                {
+                    ret_transition_err = fsm_set_state(STATE_ERROR);
+                    if(err != ESP_OK)
+                    {
+                        panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                    }
+                }
 
+                // Monitor network health by processing ping results from the queue
                 if(xQueueReceive(
                     ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)) == pdPASS
                 )
                 {
+                    //! Temporary...
                     ESP_LOGI(
                         fsm_tag, 
                         "Ping Report -> Received: %d | Transmitted: %d | Time: %dms", 
@@ -310,12 +322,14 @@ void vTaskFSM(void *pvParameters)
                     
                     if(p_report.received > 0)
                     {
+                        // Connectivity confirmed, wait for the next verification interval
                         ESP_LOGI(fsm_tag, "Network ok, waiting interval...");
 
                         vTaskDelay(PING_SECURITY_DELAY);
                     }
                     else
                     {
+                        // No response received, attempt to re-establish connection
                         ESP_LOGE(fsm_tag, "Ping failed! Trying to reconnect");
                         err = fsm_set_state(STATE_WIFI_CONNECTING);
                         if(err != ESP_OK)
@@ -333,15 +347,18 @@ void vTaskFSM(void *pvParameters)
             }
             case STATE_OPERATIONAL_OFFLINE:
             {
+                // Reserved for future offline logic implementation
                 break;
             }
             case STATE_SYNCING:
             {
+                // Reserved for future data synchronization logic implementation
                 break;
             }
             // Used for treat all the errors in FSM
             case STATE_ERROR:
             {
+                // Handle cases where an illegal state transition was attempted
                 if(ret_transition_err == ESP_FAIL)
                 {
                     ESP_ERROR_CHECK_WITHOUT_ABORT(err);
@@ -400,7 +417,7 @@ void vTaskFSM(void *pvParameters)
                     default:
                     {
                         // Reset the machine to the initialization state for a fresh start
-                        ESP_ERROR_CHECK_WITHOUT_ABORT(err);
+                        ESP_LOGE(fsm_tag, "ERROR: %s", esp_err_to_name(err));
 
                         // Sets state to STATE_INIT
                         ret_transition_err = fsm_set_state(STATE_INIT);
@@ -416,6 +433,7 @@ void vTaskFSM(void *pvParameters)
 
             break;
         }
+        
         // Periodic delay to manage state machine execution frequency
         vTaskDelay(pdMS_TO_TICKS(DELAY_HW_STABILIZE_MS));
     }
@@ -439,6 +457,7 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
 // Responsible for the task creation
 void fsm_init(void)
 {   
+    // Creates a queue to safely pass ping results to the FSM task
     ping_queue = xQueueCreate(PING_QUEUE_ITEM_SIZE, sizeof(ping_result_t));
 
     xTaskCreate(
@@ -486,13 +505,13 @@ esp_err_t fsm_set_state(system_state_t new_state)
     }
 }
 
-// Gets the state of the FSM
+// Gets the current state of the FSM
 system_state_t fsm_get_state(void)
 {
     return current_state;
 }
 
-// Retrieves the name associated with a specific state type
+// Retrieves the name associated with a specific state type for logging purposes
 const char *state_to_name(system_state_t state)
 {
     switch(state)
