@@ -30,17 +30,30 @@ void vTaskDiag(void *pvParameters)
     {
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
-        // Gets the amount of free heap memory
-        uint32_t free_heap_s = esp_get_free_heap_size();
-        ESP_LOGI(diag_tag, "Total free heap memory: %d bytes", free_heap_s);
-        
         // Gets the amount of free stack memory
         UBaseType_t stack_free = uxTaskGetStackHighWaterMark(NULL);
-        ESP_LOGI(diag_tag, "Total stack memory left: %d bytes", stack_free * sizeof(StackType_t));    
+
+        // Gets the amount of free heap memory
+        uint32_t free_heap_s = esp_get_free_heap_size();
+
+        ESP_LOGI(diag_tag, "Total free heap memory: %d bytes", free_heap_s);
+
+        ESP_LOGI(
+            diag_tag, 
+            "Total stack memory left: %d bytes", 
+            stack_free * sizeof(StackType_t)
+        );    
     }
 }
 
 void init_diag(void)
 {
-    xTaskCreate(vTaskDiag, V_DIAG_TASK_NAME, V_DIAG_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(
+        vTaskDiag,
+        V_DIAG_TASK_NAME, 
+        V_DIAG_STACK_BUFFER, 
+        NULL, 
+        tskIDLE_PRIORITY, 
+        NULL
+    );
 }

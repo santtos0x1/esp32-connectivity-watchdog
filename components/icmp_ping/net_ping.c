@@ -7,6 +7,7 @@
 #include "esp_log.h"
 
 #include "net_ping.h"
+#include "sys_conf.h"
 
 /* Using a direct IP to bypass DNS resolution issues during network failure */
 #define PING_GLOBAL_IP_SERVER "8.8.8.8"
@@ -16,7 +17,6 @@ static const char *ping_tag = "NS-PING";
 
 esp_ping_handle_t hdl;
 
-//TODO: Implement led blinking if receive packets
 void cmd_ping_on_ping_success(esp_ping_handle_t hdl, void *args)
 {
     esp_err_t err_ttl, err_seq, err_targ, err_gap, err_size;
@@ -27,7 +27,7 @@ void cmd_ping_on_ping_success(esp_ping_handle_t hdl, void *args)
 
     ip_addr_t target_addr;
 
-    /* Extracting specific packet information for real-time monitoring */
+    // Extracting specific packet information for real-time monitoring
     
     // 1. Get Time To Live (TTL)
     err_ttl = esp_ping_get_profile(
@@ -112,7 +112,7 @@ void cmd_ping_on_ping_timeout(esp_ping_handle_t hdl, void *args)
     uint16_t seqno;
     ip_addr_t target_addr;
 
-    /* Fetch sequence number to identify which specific packet failed */
+    // Fetch sequence number to identify which specific packet failed
     err_seq = esp_ping_get_profile(
         hdl, 
         ESP_PING_PROF_SEQNO, 
@@ -150,7 +150,7 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
 
     /* Retrieve the Queue handle passed via 'cb_args' */
     QueueHandle_t p_queue = (QueueHandle_t)args;
-    ping_result_t report;
+    ping_result_t report = {0};
 
     /* Collect session statistics: transmitted vs received packets */
     // Get total number of ICMP packets sent
@@ -204,7 +204,7 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
     /* Send the consolidated report to the FSM/Watchdog via Queue */
     if(p_queue != NULL)
     {
-        xQueueSend(p_queue, &report, 0);
+        xQueueSend(p_queue, &report, DELAY_HW_STABILIZE_MS);
     }
 
     esp_ping_delete_session(hdl);
@@ -223,7 +223,7 @@ esp_err_t initialize_ping(QueueHandle_t result_q)
     cbs.cb_args = result_q;
 
     ip_addr_t target_addr;
-    struct in_addr addr4;
+    struct in_addr addr4 = {0};
     
     /* Convert string IP to network format and cast into the LwIP structure */
     inet_aton(PING_GLOBAL_IP_SERVER, &addr4);
@@ -232,6 +232,7 @@ esp_err_t initialize_ping(QueueHandle_t result_q)
 
     /* Apply configurations to the ping session */
     esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
+
     ping_config.target_addr = target_addr;
     ping_config.count = MAX_SEND_ICMP_PACKETS;
     

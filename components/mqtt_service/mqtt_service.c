@@ -18,6 +18,10 @@
     #define V_MQTT_STACK_BUFFER 2048
 #endif
 
+#define V_MQTT_TASK_PRIORITY 3
+
+static const char *mqtt_tag = "NS-MQTT";
+
 /**
  * @brief MQTT Consumer Task: Handles incoming traffic.
  * Responsible for managing MQTT subscriptions and processing 
@@ -29,9 +33,6 @@
  * Manages the system state machine and triggers data publishing
  * to the broker based on state transitions.
  */
-
-static const char *mqtt_tag = "NS-MQTT";
-
 void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     esp_mqtt_event_handle_t event = event_data;
@@ -44,11 +45,13 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
             ESP_LOGI(mqtt_tag, "Connected to broker, creating ns/monitor/new topic.");
             
             esp_mqtt_client_publish(client, "ns/monitor/now", "Test", 0, 1, 0);
+            
             break;
         }
         case MQTT_EVENT_DISCONNECTED:
         {
             ESP_LOGI(mqtt_tag, "Disconnecting from broker!");
+
             break;
         }
         case MQTT_EVENT_DATA:
@@ -63,6 +66,7 @@ void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event
         case MQTT_EVENT_ERROR:
         {
             ESP_LOGI(mqtt_tag, "Occurred an error on MQTT");
+
             break;
         }
         default:
@@ -82,5 +86,12 @@ void vTaskMQTT(void *pvParameters)
 
 void mqtt_init(void)
 {
-    xTaskCreate(vTaskMQTT, V_MQTT_TASK_NAME, V_MQTT_STACK_BUFFER, NULL, tskIDLE_PRIORITY, NULL);
+    xTaskCreate(
+        vTaskMQTT, 
+        V_MQTT_TASK_NAME, 
+        V_MQTT_STACK_BUFFER, 
+        NULL, 
+        V_MQTT_TASK_PRIORITY, 
+        NULL
+    );
 }

@@ -14,8 +14,14 @@
 
 static const char *prov_tag = "NS-PROV";
 
+static bool provisioned = false;
+
 // Handles background events triggered by the provisioning process
-void provisioning_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+void provisioning_event_handler(void *arg, 
+                                esp_event_base_t event_base, 
+                                int32_t event_id, 
+                                void *event_data
+)
 {
     if(event_base == WIFI_PROV_EVENT)
     {
@@ -61,17 +67,6 @@ void provisioning_event_handler(void *arg, esp_event_base_t event_base, int32_t 
     }
 }
 
-esp_err_t root_callback(uint32_t session_id, const uint8_t *in_data, ssize_t in_len,
-                        uint8_t **out_data, ssize_t *out_len, void *priv_data)
-{
-    ESP_LOGI(prov_tag, "/ endpoint accessed.");
-
-    *out_data = NULL;
-    *out_len = 0;
-
-    return ESP_OK;
-}
-
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns(void)
 {   
@@ -107,7 +102,6 @@ esp_err_t init_mdns(void)
 // Sets up and starts the SoftAP provisioning service
 esp_err_t init_provisioning(void)
 {
-    bool provisioned = false;
     esp_err_t err;
     
     // Use SoftAP scheme (ESP32 acts as an Access Point)

@@ -263,7 +263,6 @@ void vTaskFSM(void *pvParameters)
                                 {
                                     panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                                 }
-                                
                             }
 
                             break;
@@ -369,6 +368,7 @@ void vTaskFSM(void *pvParameters)
                     {
                         // No response received, attempt to re-establish connection
                         ESP_LOGE(fsm_tag, "Ping failed! Trying to reconnect");
+                        
                         err = fsm_set_state(STATE_WIFI_CONNECTING);
                         if(err != ESP_OK)
                         {
