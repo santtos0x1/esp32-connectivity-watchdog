@@ -14,8 +14,8 @@
 #define MAXIMUM_RETRY  3
 
 // Debug tags
-static const char *wifi_tag = "wifi";
-static const char *nal_tag  = "nal";
+static const char *wifi_tag = "NS-WIFI";
+static const char *nal_tag  = "NS-NAL";
 
 static int s_retry_num = 0;
 

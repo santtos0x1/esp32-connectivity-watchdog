@@ -12,7 +12,7 @@
 #define PING_GLOBAL_IP_SERVER "8.8.8.8"
 #define MAX_SEND_ICMP_PACKETS 5
 
-static const char *ping_tag = "ping";
+static const char *ping_tag = "NS-PING";
 
 esp_ping_handle_t hdl;
 

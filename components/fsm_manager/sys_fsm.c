@@ -48,7 +48,7 @@ QueueHandle_t ping_queue;
 
 static bool fsm_status = false;
 static system_state_t current_state = STATE_INIT;
-static const char *fsm_tag = "fsm";
+static const char *fsm_tag = "NS-FSM";
 
 // FSM task to run
 void vTaskFSM(void *pvParameters)

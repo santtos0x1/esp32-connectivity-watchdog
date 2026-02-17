@@ -10,8 +10,8 @@ static uint32_t free_internal_heap_size;
 static uint16_t MAJOR_VERSION;
 static uint16_t MINOR_VERSION;
 
-static char *boot_tag = "boot";
-static char *features_tag = "boot-features";
+static char *boot_tag = "NS-BOOT";
+static char *features_tag = "NS-BOOT-FEATURES";
 
 typedef struct {
     uint32_t mask;

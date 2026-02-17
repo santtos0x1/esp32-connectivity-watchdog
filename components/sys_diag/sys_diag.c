@@ -19,7 +19,7 @@
     #define V_DIAG_STACK_BUFFER  2048
 #endif
 
-static const char *diag_tag = "diag";
+static const char *diag_tag = "NS-DIAG";
 
 void vTaskDiag(void *pvParameters)
 {

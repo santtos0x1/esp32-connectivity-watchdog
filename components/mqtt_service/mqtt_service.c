@@ -30,7 +30,7 @@
  * to the broker based on state transitions.
  */
 
-static const char *mqtt_tag = "mqtt";
+static const char *mqtt_tag = "NS-MQTT";
 
 void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {

@@ -5,7 +5,7 @@
 
 #include "hal_map.h"
 
-static const char *gpio_tag = "gpio";
+static const char *gpio_tag = "NS-GPIO";
 
 // Configuration set
 gpio_config_t builtin_led = {

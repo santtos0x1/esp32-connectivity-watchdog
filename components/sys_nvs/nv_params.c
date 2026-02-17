@@ -6,7 +6,7 @@
 #include "nv_params.h"
 #include "sys_conf.h"
 
-static const char* nvs_tag = "nvs"; 
+static const char* nvs_tag = "NS-NVS"; 
 
 esp_err_t init_nvs(void)
 {
