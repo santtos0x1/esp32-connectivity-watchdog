@@ -72,7 +72,6 @@ esp_err_t root_callback(uint32_t session_id, const uint8_t *in_data, ssize_t in_
     return ESP_OK;
 }
 
-
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns(void)
 {   

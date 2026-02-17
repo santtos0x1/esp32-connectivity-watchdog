@@ -83,11 +83,30 @@ esp_err_t init_network_abstraction_layer(void)
 */
 esp_err_t init_wifi_connection(void)
 {   
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
+    err = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+    if(err != ESP_OK)
+    {
+        ESP_LOGE(wifi_tag, "Failed to set wifi storage: %s", esp_err_to_name(err));
+
+        return err;
+    }
+
+    err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    if(err != ESP_OK)
+    {
+        ESP_LOGE(wifi_tag, "Failed to set wifi config: %s", esp_err_to_name(err));   
+        
+        return err;
+    }
+
     // Minimal radio setup with error handling
     err = esp_wifi_set_mode(WIFI_MODE_STA);
     if(err != ESP_OK)
     {
         ESP_LOGE(wifi_tag, "Failed to set mode STA: %s", esp_err_to_name(err));
+        
         return err;
     }
 
@@ -95,6 +114,7 @@ esp_err_t init_wifi_connection(void)
     if(err != ESP_OK && err != ESP_ERR_WIFI_STATE)
     {
         ESP_LOGE(wifi_tag, "Failed to start WiFi: %s", esp_err_to_name(err));
+     
         return err;
     }
 
