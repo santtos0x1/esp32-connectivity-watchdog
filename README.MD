@@ -19,3 +19,5 @@ The system acts as an active sentinel, performing the following operations:
 - Automated Reporting: Utilizes the *MQTT protocol* to transmit performance metrics and outage alerts to a central broker, enabling seamless integration with dashboards (such as Grafana or Node-RED).
 
 - Data Persistence: Manages credentials and critical states via *NVS* (Non-Volatile Storage), ensuring the device automatically resumes monitoring after power cycles.
+
+![logic](fsm_logic.jpg)

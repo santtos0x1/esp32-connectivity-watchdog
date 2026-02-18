@@ -20,14 +20,14 @@ typedef enum {
 */
 static const uint8_t state_bitmask[8] = {
     // Bits: 7(ERR) 6(SYN) 5(OFF) 4(ONL) 3(MQT) 2(PRV) 1(WIF) 0(INI)
-    0b10000110, // STATE_INIT            -> Permite: WIF(1), PRV(2), ERR(7)
-    0b10001101, // STATE_WIFI_CONNECTING -> Permite: INI(0), PRV(2), MQT(3), ERR(7)
-    0b10001001, // STATE_PROVISIONING    -> Permite: INI(0), MQT(3), ERR(7)
-    0b11010011, // STATE_MQTT_CONNECTING -> Permite: INI(0), WIF(1), ONL(4), SYN(6), ERR(7)
-    0b11100011, // STATE_OPERATIONAL_ON  -> Permite: INI(0), WIF(1), OFF(5), SYN(6), ERR(7)
-    0b11010011, // STATE_OPERATIONAL_OFF -> Permite: INI(0), WIF(1), ONL(4), SYN(6), ERR(7)
-    0b10001011, // STATE_SYNCING         -> Permite: INI(0), WIF(1), MQT(3), ERR(7)
-    0b01111111  // STATE_ERROR           -> Permite: Todos exceto bit 7 (ele mesmo)
+    0b10000110, // STATE_INIT            -> Allow: WIF(1), PRV(2), ERR(7)
+    0b10001101, // STATE_WIFI_CONNECTING -> Allow: INI(0), PRV(2), MQT(3), ERR(7)
+    0b10001001, // STATE_PROVISIONING    -> Allow: INI(0), MQT(3), ERR(7)
+    0b11010011, // STATE_MQTT_CONNECTING -> Allow: INI(0), WIF(1), ONL(4), SYN(6), ERR(7)
+    0b11100011, // STATE_OPERATIONAL_ON  -> Allow: INI(0), WIF(1), OFF(5), SYN(6), ERR(7)
+    0b11010011, // STATE_OPERATIONAL_OFF -> Allow: INI(0), WIF(1), ONL(4), SYN(6), ERR(7)
+    0b10001011, // STATE_SYNCING         -> Allow: INI(0), WIF(1), MQT(3), ERR(7)
+    0b01111111  // STATE_ERROR           -> Allow: All except bit 7 (it self)
 };
 
 esp_err_t fsm_set_state(system_state_t new_state);
