@@ -11,9 +11,7 @@
     * 
     * Task-Based Execution: Runs as a dedicated FreeRTOS task with controlled frequency
     * to manage CPU load and hardware stabilization.
-    * 
-    * NS Monitor - 02/2026
-
+    *
     * State Transition Matrix (Bitmask-based):
     * Each bit represents an allowed transition where bit 0 is STATE_INIT, 
     * bit 1 is STATE_WIFI_CONNECTING, and so on.
@@ -28,6 +26,8 @@
     * STATE_SYNCING          -> INIT, WIFI_CONNECTING, MQTT_CONNECTING, ERROR
     * STATE_ERROR            -> ANY STATE (Except it self)
     * ----------------------------------------------------------------------------
+    * 
+    * * Network Stability Monitor (NS Monitor) - Connectivity Watchdog - 2026 - Brazil
 */
 
 #include "sdkconfig.h"
@@ -120,7 +120,6 @@ void vTaskFSM(void *pvParameters)
                     err = sys_conf_gpio();
                     if(err != ESP_OK)
                     {
-                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
@@ -136,7 +135,17 @@ void vTaskFSM(void *pvParameters)
                         init_bit |= INIT_BIT_GPIO;
                     }
 
-                    boot_fb(BOOT_FEEDBACK_LED_PIN);
+                    err = boot_fb(BOOT_FEEDBACK_LED_PIN);
+                    if(err != ESP_OK)
+                    {
+                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
+
+                        break;
+                    }
 
                     vTaskDelay(pdMS_TO_TICKS(DELAY_UI_REFRESH_MS));
 
@@ -144,7 +153,6 @@ void vTaskFSM(void *pvParameters)
                     err = init_network_abstraction_layer();
                     if(err != ESP_OK)
                     {
-                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
@@ -164,12 +172,12 @@ void vTaskFSM(void *pvParameters)
                     err = esp_wifi_init(&init_cfg);
                     if(err != ESP_OK)
                     {
-                        // Set state to STATE_ERROR
                         ret_transition_err = fsm_set_state(STATE_ERROR);
                         if(ret_transition_err != ESP_OK)
                         {
                             panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
                         }
+
                         break;
                     }
                     else
@@ -179,7 +187,7 @@ void vTaskFSM(void *pvParameters)
                         init_bit |= INIT_BIT_WIFI;
                     }
 
-                    // Register an event from event handler
+                    // Register an provisioning event from event handler
                     ESP_ERROR_CHECK(esp_event_handler_register(
                         WIFI_PROV_EVENT,
                         ESP_EVENT_ANY_ID,
@@ -188,24 +196,25 @@ void vTaskFSM(void *pvParameters)
                     ));
 
                     // Registers the event handler for IP acquisition
-                    esp_event_handler_register(
+                    ESP_ERROR_CHECK(esp_event_handler_register(
                         IP_EVENT, 
                         IP_EVENT_STA_GOT_IP, 
                         wifi_status_event_handler, 
                         NULL
-                    );
+                    ));
 
                     // Registers the event handler for WiFi disconnection
-                    esp_event_handler_register(
+                    ESP_ERROR_CHECK(esp_event_handler_register(
                         WIFI_EVENT, 
                         WIFI_EVENT_STA_DISCONNECTED, 
                         wifi_status_event_handler, 
                         NULL
-                    );
+                    ));
 
                     if(init_bit == INIT_SUCCESS_BITMASK)
                     {
                         fsm_status = true;
+
                         ESP_LOGI(
                             fsm_tag,
                             "Initialization complete. Mask: 0x%02X | Full mask: 0x%02x |Status: %s",
@@ -328,12 +337,24 @@ void vTaskFSM(void *pvParameters)
             {
                 // Delay to ensure network stability before transitioning
                 vTaskDelay(pdMS_TO_TICKS(PING_COOLDOWN_MS));
+                
                 err = fsm_set_state(STATE_OPERATIONAL_ONLINE);
+                if(err != ESP_OK)
+                {
+                    ret_transition_err = fsm_set_state(STATE_ERROR);
+                    if(ret_transition_err != ESP_OK)
+                    {
+                        panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                    }
+                }
 
                 break;
             }
             case STATE_OPERATIONAL_ONLINE:
-            {   // Publish information on MQTT broker
+            {   
+                BaseType_t ret_squeue;
+
+                // Publish information on MQTT broker
                 err = initialize_ping(ping_queue);
                 if(err != ESP_OK)
                 {
@@ -358,7 +379,7 @@ void vTaskFSM(void *pvParameters)
                         "v1/device/ping"
                     );
                     
-                    // Sets the payload and others informations to publish
+                    // Sets the payload to publish
                     snprintf(
                         msg_to_send.payload, 
                         sizeof(msg_to_send.payload), 
@@ -375,7 +396,7 @@ void vTaskFSM(void *pvParameters)
                         ESP_LOGW(fsm_tag, "MQTT queue full!");
                     }
 
-                    if(p_report.received > 0)
+                    if(msg_to_send.payload > 0)
                     {
                         xQueueSend(mqtt_queue, &msg_to_send, DELAY_HW_STABILIZE_MS);
 
@@ -537,10 +558,18 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
 // Responsible for the task creation
 void fsm_init(void)
 {   
+    BaseType_t ret_task;
+
     // Creates a queue to safely pass ping results to the FSM task
     ping_queue = xQueueCreate(PING_QUEUE_ITEM_SIZE, sizeof(ping_result_t));
+    if(ping_queue == NULL)
+    {
+        ESP_LOGE(fsm_tag, "Critical failure: failed to create ping queue!");
+        
+        panic_dev_restart(LOW_DELAY_TICK_MS, ESP_FAIL);
+    }
 
-    xTaskCreate(
+    ret_task = xTaskCreate(
         vTaskFSM, 
         V_FSM_TASK_NAME, 
         V_FSM_STACK_BUFFER,
@@ -548,6 +577,12 @@ void fsm_init(void)
         V_FSM_TASK_PRIORITY, 
         NULL
     );
+    if(ret_task != pdPASS)
+    {
+        ESP_LOGE(fsm_tag, "Critical failure: failed to create FSM task!");
+        
+        return;
+    }
 }
 
 /*

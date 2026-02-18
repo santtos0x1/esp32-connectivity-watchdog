@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void boot_fb(uint8_t led_pinout);
+esp_err_t boot_fb(uint8_t led_pinout);
 
 #endif // !PATTERNS_H

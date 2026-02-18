@@ -23,6 +23,9 @@ static const char *diag_tag = "NS-DIAG";
 
 void vTaskDiag(void *pvParameters)
 {
+    UBaseType_t stack_free;
+    uint32_t free_heap_s;
+
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xPeriod = pdMS_TO_TICKS(HEALTH_CHECK_DELAY_MS);
 
@@ -31,10 +34,10 @@ void vTaskDiag(void *pvParameters)
         vTaskDelayUntil(&xLastWakeTime, xPeriod);
 
         // Gets the amount of free stack memory
-        UBaseType_t stack_free = uxTaskGetStackHighWaterMark(NULL);
+        stack_free = uxTaskGetStackHighWaterMark(NULL);
 
         // Gets the amount of free heap memory
-        uint32_t free_heap_s = esp_get_free_heap_size();
+        free_heap_s = esp_get_free_heap_size();
 
         ESP_LOGI(diag_tag, "Total free heap memory: %d bytes", free_heap_s);
 
@@ -48,7 +51,9 @@ void vTaskDiag(void *pvParameters)
 
 void init_diag(void)
 {
-    xTaskCreate(
+    BaseType_t ret_task;
+
+    ret_task = xTaskCreate(
         vTaskDiag,
         V_DIAG_TASK_NAME, 
         V_DIAG_STACK_BUFFER, 
@@ -56,4 +61,10 @@ void init_diag(void)
         tskIDLE_PRIORITY, 
         NULL
     );
+    if(ret_task != pdPASS)
+    {
+        ESP_LOGE(diag_tag, "Critical failure: failed to create diagnostic task!");
+        
+        return;
+    }
 }

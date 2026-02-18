@@ -23,6 +23,11 @@ QueueHandle_t mqtt_queue;
 
 #define V_MQTT_TASK_PRIORITY 3
 
+#define MQTT_SUBSCRIPTION_FULL_OUTBOX -2
+#define MQTT_PUBLISH_GENERIC_ERR -1
+
+#define MQTT_QUEUE_ITEM_SIZE 10
+
 static const char *mqtt_tag = "NS-MQTT";
 
 /**
@@ -46,7 +51,10 @@ void mqtt_event_handler(void *handler_args,
 {
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
+
     int cmd_msg_id;
+
+    esp_err_t err;
 
     switch ((esp_mqtt_event_id_t)event_id)
     {
@@ -57,11 +65,27 @@ void mqtt_event_handler(void *handler_args,
             is_mqtt_connected = true;
 
             cmd_msg_id = esp_mqtt_client_subscribe(client, "v1/device/commands", 1);
-            ESP_LOGI(mqtt_tag, "Subscribed to cmd topic, msg_id=%d", cmd_msg_id);
+            if(err == MQTT_SUBSCRIPTION_FULL_OUTBOX)
+            {
+                ESP_LOGE(mqtt_tag, "Failed to subscribe on topic: v1/device/commands");
+            }
+            else
+            {
+                ESP_LOGI(mqtt_tag, "Subscribed to cmd topic, msg_id=%d", cmd_msg_id);                
+            }
 
-            esp_mqtt_client_publish(client, "v1/device/ping", "", 0, 1, 0);
+            err = esp_mqtt_client_publish(client, "v1/device/ping", "", 0, 1, 0);
+            if(err == MQTT_PUBLISH_GENERIC_ERR)
+            {
+                ESP_LOGE(mqtt_tag, "Failed to create or publish on topic: v1/device/ping");
+            }
+
             esp_mqtt_client_publish(client, "v1/device/status", "ONLINE", 0, 1, 0);
-            
+            if(err == MQTT_PUBLISH_GENERIC_ERR)
+            {
+                ESP_LOGE(mqtt_tag, "Failed to create or publish on topic: v1/device/status");
+            }
+
             break;
         }
 
@@ -120,15 +144,17 @@ void mqtt_event_handler(void *handler_args,
 
 void vTaskMQTT(void *pvParameters)
 {   
+    mqtt_message_t rx_msg;
+    esp_mqtt_client_handle_t client;
+
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = CONFIG_MQTT_BROKER_URL,
     };
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    client = esp_mqtt_client_init(&mqtt_cfg);
+
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
-
-    mqtt_message_t rx_msg;
 
     for(;;)
     {
@@ -150,9 +176,17 @@ void vTaskMQTT(void *pvParameters)
 
 void mqtt_init(void)
 {
-    mqtt_queue = xQueueCreate(10, sizeof(mqtt_message_t));   
+    BaseType_t ret_task;
 
-    xTaskCreate(
+    mqtt_queue = xQueueCreate(MQTT_QUEUE_ITEM_SIZE, sizeof(mqtt_message_t));   
+    if(mqtt_queue == NULL)
+    {
+        ESP_LOGE(mqtt_tag, "Critical failure: failed to create ping queue!");
+
+        return;
+    }
+    
+    ret_task = xTaskCreate(
         vTaskMQTT, 
         V_MQTT_TASK_NAME, 
         V_MQTT_STACK_BUFFER, 
@@ -160,4 +194,10 @@ void mqtt_init(void)
         V_MQTT_TASK_PRIORITY, 
         NULL
     );
+    if(ret_task != pdPASS)
+    {
+        ESP_LOGE(mqtt_tag, "Critical failure: failed to create MQTT task!");
+
+        return;
+    }
 }

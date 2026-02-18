@@ -146,7 +146,7 @@ void cmd_ping_on_ping_timeout(esp_ping_handle_t hdl, void *args)
 
 void cmd_ping_end(esp_ping_handle_t hdl, void *args)
 {
-    esp_err_t err_req, err_rep, err_dur;
+    esp_err_t err_req, err_rep, err_dur, err;
 
     /* Retrieve the Queue handle passed via 'cb_args' */
     QueueHandle_t p_queue = (QueueHandle_t)args;
@@ -207,7 +207,11 @@ void cmd_ping_end(esp_ping_handle_t hdl, void *args)
         xQueueSend(p_queue, &report, DELAY_HW_STABILIZE_MS);
     }
 
-    esp_ping_delete_session(hdl);
+    err = esp_ping_delete_session(hdl);
+    if(err != ESP_OK)
+    {
+        ESP_LOGW(ping_tag, "Failed to delete session: %s", esp_err_to_name(err));
+    }
 }
 
 esp_err_t initialize_ping(QueueHandle_t result_q)

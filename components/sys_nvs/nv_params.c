@@ -20,6 +20,12 @@ esp_err_t init_nvs(void)
         ESP_ERROR_CHECK(err);
         
         err = nvs_flash_erase();
+        if(err != ESP_OK)
+        {
+            ESP_LOGE(nvs_tag, "Failed to erase flash: %s", esp_err_to_name(err));
+
+            return err;
+        }
     }
 
     // Return the init status

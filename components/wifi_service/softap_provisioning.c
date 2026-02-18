@@ -69,12 +69,12 @@ void provisioning_event_handler(void *arg,
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns(void)
 {   
+    esp_err_t err;
+
     mdns_txt_item_t serviceTxtData[] = {
         {"ver", "1"},
         {"name", "ns-monitor-device"}
     };
-
-    esp_err_t err;
 
     err = mdns_init();
     if(err != ESP_OK)
@@ -101,8 +101,10 @@ esp_err_t init_mdns(void)
     }
 
     err = mdns_service_add("NS Monitor Prov", "_esp_prov", "_tcp", 80, serviceTxtData, 2);
-    if (err != ESP_OK) {
+    if (err != ESP_OK)
+    {
         ESP_LOGE(prov_tag, "Failed to add mDNS service: %s", esp_err_to_name(err));
+
         return err;
     }
 
