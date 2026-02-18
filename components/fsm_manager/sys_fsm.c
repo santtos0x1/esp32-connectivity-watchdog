@@ -351,25 +351,33 @@ void vTaskFSM(void *pvParameters)
                 {
                     mqtt_message_t msg_to_send;
 
-                    snprintf(msg_to_send.topic, sizeof(msg_to_send.topic), "v1/device/ping");
+                    // Sets the topic to publish
+                    snprintf(
+                        msg_to_send.topic, 
+                        sizeof(msg_to_send.topic), 
+                        "v1/device/ping"
+                    );
                     
+                    // Sets the payload and others informations to publish
                     snprintf(
                         msg_to_send.payload, 
                         sizeof(msg_to_send.payload), 
                         "{\"rec\": %d, \"tx\": %d, \"time\": %d}", 
-                        (int)p_report.received, (int)p_report.transmitted, (int)p_report.total_time_ms
+                        (int)p_report.received, 
+                        (int)p_report.transmitted, 
+                        (int)p_report.total_time_ms
                     );  
 
                     msg_to_send.qos = 1;
                     msg_to_send.retain = 0;
 
-                    if(xQueueSend(mqtt_queue, &msg_to_send, 0) != pdPASS) {
+                    if(xQueueSend(mqtt_queue, &msg_to_send, DELAY_HW_STABILIZE_MS) != pdPASS) {
                         ESP_LOGW(fsm_tag, "MQTT queue full!");
                     }
 
                     if(p_report.received > 0)
                     {
-                        xQueueSend(mqtt_queue, &p_report, DELAY_HW_STABILIZE_MS);
+                        xQueueSend(mqtt_queue, &msg_to_send, DELAY_HW_STABILIZE_MS);
 
                         // Connectivity confirmed, wait for the next verification interval
                         ESP_LOGI(fsm_tag, "Network ok, waiting interval...");
@@ -512,6 +520,11 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret)
     if(ms > 0)
     {
         vTaskDelay(pdMS_TO_TICKS(ms));    
+    }
+    else
+    {
+        // Default restart delay if ms <= 0
+        vTaskDelay(pdMS_TO_TICKS(DELAY_UI_REFRESH_MS));
     }
 
     ESP_LOGE(fsm_tag, "PANIC Restart error: %s ", esp_err_to_name(error_ret));

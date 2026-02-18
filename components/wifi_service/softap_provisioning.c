@@ -20,8 +20,7 @@ static bool provisioned = false;
 void provisioning_event_handler(void *arg, 
                                 esp_event_base_t event_base, 
                                 int32_t event_id, 
-                                void *event_data
-)
+                                void *event_data)
 {
     if(event_base == WIFI_PROV_EVENT)
     {
@@ -70,8 +69,13 @@ void provisioning_event_handler(void *arg,
 // Configures mDNS to allow the mobile app to find the device by name
 esp_err_t init_mdns(void)
 {   
+    mdns_txt_item_t serviceTxtData[] = {
+        {"ver", "1"},
+        {"name", "ns-monitor-device"}
+    };
+
     esp_err_t err;
-    
+
     err = mdns_init();
     if(err != ESP_OK)
     {
@@ -96,6 +100,12 @@ esp_err_t init_mdns(void)
         return err;
     }
 
+    err = mdns_service_add("NS Monitor Prov", "_esp_prov", "_tcp", 80, serviceTxtData, 2);
+    if (err != ESP_OK) {
+        ESP_LOGE(prov_tag, "Failed to add mDNS service: %s", esp_err_to_name(err));
+        return err;
+    }
+
     return ESP_OK;
 }
 
@@ -110,21 +120,6 @@ esp_err_t init_provisioning(void)
         .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE
     };
 
-    wifi_prov_mgr_is_provisioned(&provisioned);
-
-    if(provisioned) {
-        ESP_LOGI(prov_tag, "Device already provisioned. Skipping manager init.");
-        
-        err = wifi_prov_mgr_reset_provisioning();
-        if(err != ESP_OK)
-        {
-            ESP_LOGE(prov_tag, "Failed to reset provisioning: %s", esp_err_to_name(err));
-
-            return err;
-        }
-    }
-    
-    
     err = wifi_prov_mgr_init(mgr_conf);
     if(err != ESP_OK)
     {
@@ -137,6 +132,18 @@ esp_err_t init_provisioning(void)
         return err;
     }
 
+    err = wifi_prov_mgr_is_provisioned(&provisioned);
+    if(err != ESP_OK)
+    {
+        ESP_LOGE(
+            prov_tag, 
+            "Failed to check if its already provisioned: %s", 
+            esp_err_to_name(err)
+        );
+        
+        return err;
+    }
+
     // Start provisioning with Security 1 (requires PoP)
     err = wifi_prov_mgr_start_provisioning(
         WIFI_PROV_SECURITY_1, 
@@ -144,7 +151,6 @@ esp_err_t init_provisioning(void)
         CONFIG_WIFI_AP_PROV_SSID,
         NULL
     );
-    
     if(err != ESP_OK)
     {
         ESP_LOGE( 

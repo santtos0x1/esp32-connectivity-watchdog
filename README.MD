@@ -20,4 +20,8 @@ The system acts as an active sentinel, performing the following operations:
 
 - Data Persistence: Manages credentials and critical states via *NVS* (Non-Volatile Storage), ensuring the device automatically resumes monitoring after power cycles.
 
+---
+
+# FSM Logic
+
 ![logic](fsm_logic.jpg)

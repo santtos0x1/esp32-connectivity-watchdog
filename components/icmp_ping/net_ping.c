@@ -9,7 +9,7 @@
 #include "net_ping.h"
 #include "sys_conf.h"
 
-/* Using a direct IP to bypass DNS resolution issues during network failure */
+// Using a direct IP to bypass DNS resolution issues during network failure
 #define PING_GLOBAL_IP_SERVER "8.8.8.8"
 #define MAX_SEND_ICMP_PACKETS 5
 

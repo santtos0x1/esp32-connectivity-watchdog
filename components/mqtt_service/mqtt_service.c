@@ -46,7 +46,7 @@ void mqtt_event_handler(void *handler_args,
 {
     esp_mqtt_event_handle_t event = event_data;
     esp_mqtt_client_handle_t client = event->client;
-    int msg_id;
+    int cmd_msg_id;
 
     switch ((esp_mqtt_event_id_t)event_id)
     {
@@ -56,9 +56,10 @@ void mqtt_event_handler(void *handler_args,
             
             is_mqtt_connected = true;
 
-            msg_id = esp_mqtt_client_subscribe(client, "v1/device/commands", 1);
-            ESP_LOGI(mqtt_tag, "Subscribed to cmd topic, msg_id=%d", msg_id);
+            cmd_msg_id = esp_mqtt_client_subscribe(client, "v1/device/commands", 1);
+            ESP_LOGI(mqtt_tag, "Subscribed to cmd topic, msg_id=%d", cmd_msg_id);
 
+            esp_mqtt_client_publish(client, "v1/device/ping", "", 0, 1, 0);
             esp_mqtt_client_publish(client, "v1/device/status", "ONLINE", 0, 1, 0);
             
             break;
@@ -76,7 +77,7 @@ void mqtt_event_handler(void *handler_args,
         case MQTT_EVENT_DATA:
         {
             ESP_LOGI(mqtt_tag, "Received Data on topic: %.*s", event->topic_len, event->topic);
-            printf("Payload: %.*s\r\n", event->data_len, event->data);
+            ESP_LOGI(mqtt_tag, "Payload: %.*s\r\n", event->data_len, event->data);
             
             break;
         }
@@ -85,11 +86,24 @@ void mqtt_event_handler(void *handler_args,
         {
             ESP_LOGE(mqtt_tag, "MQTT Error detected");
             
-            if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-                ESP_LOGE(mqtt_tag, "Network Error: %s", strerror(event->error_handle->esp_transport_sock_errno));
-            } else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
-                ESP_LOGE(mqtt_tag, "Connection Refused code: 0x%x", event->error_handle->connect_return_code);
-            } else {
+            if(event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT)
+            {
+                ESP_LOGE(
+                    mqtt_tag, 
+                    "Network Error: %s", 
+                    strerror(event->error_handle->esp_transport_sock_errno)
+                );
+            }
+            else if(event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED)
+            {
+                ESP_LOGE(
+                    mqtt_tag, 
+                    "Connection Refused code: 0x%x", 
+                    event->error_handle->connect_return_code
+                );
+            }
+            else
+            {
                 ESP_LOGE(mqtt_tag, "Unknown error type: %d", event->error_handle->error_type);
             }
             
@@ -98,6 +112,7 @@ void mqtt_event_handler(void *handler_args,
 
         default:
             ESP_LOGD(mqtt_tag, "Other event id:%d", event->event_id);
+
             break;
     }
 }
