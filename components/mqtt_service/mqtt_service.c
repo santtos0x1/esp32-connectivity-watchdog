@@ -65,7 +65,7 @@ void mqtt_event_handler(void *handler_args,
             is_mqtt_connected = true;
 
             cmd_msg_id = esp_mqtt_client_subscribe(client, "v1/device/commands", 1);
-            if(err == MQTT_SUBSCRIPTION_FULL_OUTBOX)
+            if(cmd_msg_id == MQTT_SUBSCRIPTION_FULL_OUTBOX)
             {
                 ESP_LOGE(mqtt_tag, "Failed to subscribe on topic: v1/device/commands");
             }

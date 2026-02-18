@@ -37,4 +37,6 @@ esp_err_t boot_fb(uint8_t led_pinout)
         
         esp_rom_delay_us(DELAY_UI_REFRESH_US);
     }    
+
+    return ESP_OK;
 }
