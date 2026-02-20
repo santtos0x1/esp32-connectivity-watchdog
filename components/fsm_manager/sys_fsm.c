@@ -95,6 +95,12 @@ void vTaskFSM(void *pvParameters)
     static esp_err_t err;
     static esp_err_t ret_transition_err;
 
+    ESP_LOGI(fsm_tag, "Waiting for MQTT queue to be initialized...");
+    while (mqtt_queue == NULL) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    ESP_LOGI(fsm_tag, "MQTT queue detected! Starting FSM logic.");
+
     // Uses default initial configuration
     wifi_init_config_t init_cfg = WIFI_INIT_CONFIG_DEFAULT(); 
 
@@ -135,6 +141,7 @@ void vTaskFSM(void *pvParameters)
                         init_bit |= INIT_BIT_GPIO;
                     }
 
+                    // Boot led visual feedback 
                     err = boot_fb(BOOT_FEEDBACK_LED_PIN);
                     if(err != ESP_OK)
                     {
@@ -337,17 +344,43 @@ void vTaskFSM(void *pvParameters)
             {
                 // Delay to ensure network stability before transitioning
                 vTaskDelay(pdMS_TO_TICKS(PING_COOLDOWN_MS));
-                
-                err = fsm_set_state(STATE_OPERATIONAL_ONLINE);
-                if(err != ESP_OK)
+             
+                static bool start_attempted = false;
+
+                if (!start_attempted) 
                 {
-                    ret_transition_err = fsm_set_state(STATE_ERROR);
-                    if(ret_transition_err != ESP_OK)
+                    if (mqtt_start_app() == ESP_OK) 
                     {
-                        panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        start_attempted = true;
+                        ESP_LOGI(fsm_tag, "MQTT Service started, waiting for broker handshake...");
+                    } 
+                    else 
+                    {
+                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
                     }
                 }
 
+                if(mqtt_is_connected())
+                {
+                    ESP_LOGI(fsm_tag, "Broker handshake successful!");
+                    
+                    start_attempted = false;
+                    
+                    ret_transition_err = fsm_set_state(STATE_OPERATIONAL_ONLINE);
+                    if(ret_transition_err != ESP_OK)
+                    {
+                        ret_transition_err = fsm_set_state(STATE_ERROR);
+                        if(ret_transition_err != ESP_OK)
+                        {
+                            panic_dev_restart(LOW_DELAY_TICK_MS, ret_transition_err);
+                        }
+                    }   
+                }
+                
                 break;
             }
             case STATE_OPERATIONAL_ONLINE:
@@ -367,7 +400,8 @@ void vTaskFSM(void *pvParameters)
 
                 // Monitor network health by processing ping results from the queue
                 if(xQueueReceive(
-                    ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)) == pdPASS
+                    ping_queue, &p_report, pdMS_TO_TICKS(QUEUE_RECEIVE_DELAY)
+                    ) == pdPASS
                 )
                 {
                     mqtt_message_t msg_to_send;
@@ -396,7 +430,7 @@ void vTaskFSM(void *pvParameters)
                         ESP_LOGW(fsm_tag, "MQTT queue full!");
                     }
 
-                    if(msg_to_send.payload > 0)
+                    if(p_report.received > 0)
                     {
                         xQueueSend(mqtt_queue, &msg_to_send, DELAY_HW_STABILIZE_MS);
 

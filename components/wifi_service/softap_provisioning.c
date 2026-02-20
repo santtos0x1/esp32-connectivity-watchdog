@@ -38,7 +38,7 @@ void provisioning_event_handler(void *arg,
                 wifi_sta_config_t *wifi_sta_cfg = (wifi_sta_config_t *)event_data;
                 ESP_LOGI(
                     prov_tag, 
-                    "Credential received successfully. SSID: %s", 
+                    "Credential received successfully! SSID: %s", 
                     (char *)wifi_sta_cfg->ssid 
                 );
                 

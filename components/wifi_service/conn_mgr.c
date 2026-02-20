@@ -65,12 +65,14 @@ void wifi_status_event_handler(void *arg,
 //Initializes the TCP/IP stack instance and sets WiFi to Station (STA) mode
 esp_err_t init_network_abstraction_layer(void)
 {
+    /*
     ret = esp_netif_init();
     if(ret != ESP_OK) 
     {
         ESP_LOGE(nal_tag, "Netif init failed: %s", esp_err_to_name(ret));
         return ret;
     }
+    */
 
     // Start AP for provisioning
     esp_netif_create_default_wifi_ap();

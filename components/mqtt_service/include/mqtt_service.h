@@ -12,4 +12,8 @@ extern QueueHandle_t mqtt_queue;
 
 void mqtt_init(void);
 
+esp_err_t mqtt_start_app(void);
+
+bool mqtt_is_connected(void);
+
 #endif // !MQTT_SERVICE_H

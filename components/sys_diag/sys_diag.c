@@ -39,13 +39,33 @@ void vTaskDiag(void *pvParameters)
         // Gets the amount of free heap memory
         free_heap_s = esp_get_free_heap_size();
 
-        ESP_LOGI(diag_tag, "Total free heap memory: %d bytes", free_heap_s);
+        if(free_heap_s > 5000)
+        {
+            ESP_LOGI(diag_tag, "Total free heap memory: %d bytes", free_heap_s);
+        } 
+        else
+        {
+            ESP_LOGE(diag_tag, "Critical -> Total free heap memory: %d bytes", free_heap_s);
+        }
+        
 
-        ESP_LOGI(
+        if(stack_free > 10000)
+        {
+            ESP_LOGI(
             diag_tag, 
             "Total stack memory left: %d bytes", 
             stack_free * sizeof(StackType_t)
-        );    
+            );
+        }
+        else
+        {
+            ESP_LOGE(
+            diag_tag, 
+            "Critical -> Total stack memory left: %d bytes", 
+            stack_free * sizeof(StackType_t)
+            );
+        }
+            
     }
 }
 

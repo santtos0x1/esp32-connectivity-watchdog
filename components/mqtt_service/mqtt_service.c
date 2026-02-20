@@ -42,7 +42,13 @@ static const char *mqtt_tag = "NS-MQTT";
  * to the broker based on state transitions.
  */
 
+static esp_mqtt_client_handle_t client = NULL;
+
 volatile bool is_mqtt_connected = false; 
+
+bool mqtt_is_connected(void) {
+    return is_mqtt_connected;
+}
 
 void mqtt_event_handler(void *handler_args, 
                         esp_event_base_t base, 
@@ -141,11 +147,34 @@ void mqtt_event_handler(void *handler_args,
     }
 }
 
-
 void vTaskMQTT(void *pvParameters)
 {   
     mqtt_message_t rx_msg;
-    esp_mqtt_client_handle_t client;
+
+    for(;;)
+    {
+        if(xQueueReceive(mqtt_queue, &rx_msg, portMAX_DELAY) == pdPASS)
+        {
+            if(mqtt_is_connected())
+            {
+                int msg_id = esp_mqtt_client_publish(
+                client, 
+                rx_msg.topic, 
+                rx_msg.payload, 
+                0,
+                rx_msg.qos, 
+                rx_msg.retain
+                );
+
+                ESP_LOGI(mqtt_tag, "Message send to broker, ID: %d", msg_id);
+            }
+        }    
+    }
+}
+
+void mqtt_init(void)
+{
+    BaseType_t ret_task;
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = CONFIG_MQTT_BROKER_URL,
@@ -154,29 +183,6 @@ void vTaskMQTT(void *pvParameters)
     client = esp_mqtt_client_init(&mqtt_cfg);
 
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
-
-    for(;;)
-    {
-        if(xQueueReceive(mqtt_queue, &rx_msg, portMAX_DELAY) == pdPASS)
-        {
-            int msg_id = esp_mqtt_client_publish(
-                client, 
-                rx_msg.topic, 
-                rx_msg.payload, 
-                0,
-                rx_msg.qos, 
-                rx_msg.retain
-            );
-
-            ESP_LOGI(mqtt_tag, "Message send to broker, ID: %d", msg_id);
-        }    
-    }
-}
-
-void mqtt_init(void)
-{
-    BaseType_t ret_task;
 
     mqtt_queue = xQueueCreate(MQTT_QUEUE_ITEM_SIZE, sizeof(mqtt_message_t));   
     if(mqtt_queue == NULL)
@@ -200,4 +206,19 @@ void mqtt_init(void)
 
         return;
     }
+}
+
+esp_err_t mqtt_start_app(void)
+{
+    esp_err_t err;
+
+    err = esp_mqtt_client_start(client);
+    if(err != ESP_OK)
+    {
+        ESP_LOGE(mqtt_tag, "Failed to start MQTT client: %e", esp_err_to_name(err));
+
+        return err;
+    }
+
+    return ESP_OK;
 }
