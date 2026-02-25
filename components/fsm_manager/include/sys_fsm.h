@@ -14,6 +14,10 @@ typedef enum {
     STATE_ERROR
 } system_state_t;
 
+typedef struct {
+    
+} bitwise_navigation_conf;
+
 /* Implements a state transition table using an 8-byte bitmask for a minimal memory footprint.
     This enforces strict transition rules within the set_state function,
     ensuring system security and predictable behavior.
@@ -42,6 +46,6 @@ void panic_dev_restart(TickType_t ms, esp_err_t error_ret) __attribute__((noretu
 
 const char *state_to_name(system_state_t state);
 
-uint8_t bitwise_nav(const uint8_t *bitmask_state, system_state_t c_state, system_state_t n_state);
+uint8_t bitwise_nav(const uint8_t *bitmask_state, system_state_t current_state, system_state_t next_state);
 
 #endif // !SYS_FSM_H

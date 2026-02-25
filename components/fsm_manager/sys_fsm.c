@@ -623,14 +623,14 @@ void fsm_init(void)
     Performs a bitwise AND operation with a mask of 1 to isolate the shifted bit,
     returning its boolean state.
 */
-uint8_t bitwise_nav(const uint8_t *bitmask_state, system_state_t c_state, system_state_t n_state)
+uint8_t bitwise_nav(const uint8_t *bitmask_state, system_state_t current_state, system_state_t next_state)
 {
-    return (bitmask_state[c_state] >> n_state) & 1;
+    return (bitmask_state[current_state] >> next_state) & 1;
 }
 
 // Sets the state of the FSM
 esp_err_t fsm_set_state(system_state_t new_state)
-{   
+{
     uint8_t bitwise_op = bitwise_nav(state_bitmask, current_state, new_state);
 
     if(bitwise_op)
